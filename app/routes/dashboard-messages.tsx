@@ -1,5 +1,5 @@
 import type { Route } from "./+types/dashboard-messages";
-import { requireAuth } from "~/features/auth/server/auth.server";
+import { requireAuth, withHeaders } from "~/features/auth/server/auth.server";
 import { getEnv } from "~/lib/env.server";
 import { callCommerce } from "~/lib/commerce.server";
 
@@ -10,7 +10,7 @@ export const meta: Route.MetaFunction = () => [
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const { session, headers } = await requireAuth(request, context);
 	const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnv(context);
-	const token = session.access_token;
+	const token = session?.access_token ?? "";
 
 	const inbox = await callCommerce({
 		supabaseUrl: SUPABASE_URL,
@@ -19,15 +19,19 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		action: "inbox",
 	});
 
-	return { inbox, ENV: getEnv(context) };
+	return withHeaders({ inbox, ENV: getEnv(context) }, headers);
 };
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
 	const { session, headers } = await requireAuth(request, context);
 	const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnv(context);
-	const token = session.access_token;
+	const token = session?.access_token ?? "";
 	const formData = await request.formData();
-	const intent = formData.get("intent") as string;
+	const intent = formData.get("intent");
+
+	if (!intent || typeof intent !== "string") {
+		return withHeaders({ ok: false, error: "Missing intent" }, headers);
+	}
 
 	const body: Record<string, unknown> = {};
 	for (const [key, value] of formData.entries()) {
@@ -42,7 +46,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		body,
 	});
 
-	return { ok: true, result };
+	return withHeaders({ ok: true, result }, headers);
 };
 
 export default function DashboardMessagesRoute({ loaderData }: Route.ComponentProps) {
@@ -52,7 +56,6 @@ export default function DashboardMessagesRoute({ loaderData }: Route.ComponentPr
 			<p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
 				Conversations with other creators.
 			</p>
-			{/* TODO: wire to messages feature components with Supabase Realtime */}
 		</div>
 	);
 }

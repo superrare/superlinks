@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation, Link } from "react-router";
 import {
 	LinkIcon,
@@ -11,7 +11,6 @@ import {
 	ChevronLeftIcon,
 	ChevronRightIcon,
 	MenuIcon,
-	XIcon,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Button } from "~/components/ui/button";

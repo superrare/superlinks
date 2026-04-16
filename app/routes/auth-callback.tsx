@@ -5,6 +5,8 @@ import { getEnv } from "~/lib/env.server";
 import { callCommerce } from "~/lib/commerce.server";
 import { callWallet } from "~/lib/wallet.server";
 
+const USERNAME_RE = /^[a-zA-Z0-9_-]{1,30}$/;
+
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const url = new URL(request.url);
 	const code = url.searchParams.get("code");
@@ -17,11 +19,14 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 
 	if (error) {
 		console.error("Auth callback error:", error.message);
-		throw redirect("/login");
+		throw redirect("/login", { headers });
 	}
 
+	const { data: { user } } = await supabase.auth.getUser();
+	if (!user) throw redirect("/login", { headers });
+
 	const { data: { session } } = await supabase.auth.getSession();
-	if (!session) throw redirect("/login");
+	if (!session) throw redirect("/login", { headers });
 
 	const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnv(context);
 	const token = session.access_token;
@@ -35,10 +40,15 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		});
 	} catch { /* wallet may already exist */ }
 
+	const sanitizedUsername =
+		claimedUsername && USERNAME_RE.test(claimedUsername)
+			? claimedUsername
+			: null;
+
 	const storeName =
-		claimedUsername ||
-		session.user.user_metadata?.full_name ||
-		session.user.email?.split("@")[0] ||
+		sanitizedUsername ||
+		user.user_metadata?.full_name ||
+		user.email?.split("@")[0] ||
 		"My Store";
 
 	try {

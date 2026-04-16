@@ -1,20 +1,20 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 
 const QRModal = () => {
-	const [visible, setVisible] = useState(false);
+	const [open, setOpen] = useState(false);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
-	const rendered = useRef(false);
 
 	useEffect(() => {
-		const handler = () => { setVisible(true); };
-		document.getElementById("lt-qr-btn")?.addEventListener("click", handler);
-		return () => document.getElementById("lt-qr-btn")?.removeEventListener("click", handler);
+		const btn = document.getElementById("lt-qr-btn");
+		if (!btn) return;
+		const handler = () => setOpen(true);
+		btn.addEventListener("click", handler);
+		return () => btn.removeEventListener("click", handler);
 	}, []);
 
-	useEffect(() => {
-		if (!visible || rendered.current || !canvasRef.current) return;
-		rendered.current = true;
-		const canvas = canvasRef.current;
+	const drawQR = useCallback((canvas: HTMLCanvasElement | null) => {
+		if (!canvas) return;
 		const size = canvas.width;
 		const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(window.location.href)}&margin=1&format=svg`;
 		const img = new Image();
@@ -27,25 +27,28 @@ const QRModal = () => {
 			ctx.drawImage(img, 0, 0, size, size);
 		};
 		img.src = url;
-	}, [visible]);
+	}, []);
 
-	if (!visible) return null;
+	useEffect(() => {
+		if (open && canvasRef.current) {
+			drawQR(canvasRef.current);
+		}
+	}, [open, drawQR]);
 
 	return (
-		<>
-			<div
-				className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm transition-opacity"
-				onClick={() => setVisible(false)}
-			/>
-			<div className="fixed bottom-0 left-0 right-0 z-[201] rounded-t-[20px] bg-white px-6 pb-8 pt-3 transition-transform animate-slide-up">
-				<div className="mx-auto mb-4 h-1 w-9 rounded-full bg-gray-200" />
-				<h3 className="mb-5 text-center text-base font-bold">QR Code</h3>
-				<div className="flex justify-center mb-3">
+		<Dialog open={open} onOpenChange={setOpen}>
+			<DialogContent className="max-w-xs" aria-describedby="qr-desc">
+				<DialogHeader>
+					<DialogTitle>QR Code</DialogTitle>
+				</DialogHeader>
+				<div className="flex justify-center">
 					<canvas ref={canvasRef} width={200} height={200} className="rounded-xl shadow-md" />
 				</div>
-				<p className="text-center text-xs text-gray-500">Scan to visit this page</p>
-			</div>
-		</>
+				<p id="qr-desc" className="text-center text-xs text-[var(--text-tertiary)]">
+					Scan to visit this page
+				</p>
+			</DialogContent>
+		</Dialog>
 	);
 };
 

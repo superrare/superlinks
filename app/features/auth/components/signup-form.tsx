@@ -14,6 +14,7 @@ export const SignupForm = ({ prefilledUsername = "", supabaseUrl, anonKey }: Sig
 	const [checkState, setCheckState] = useState<"" | "available" | "unavailable" | "checking">("");
 	const [checkMessage, setCheckMessage] = useState("");
 	const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+	const abortRef = useRef<AbortController>(undefined);
 
 	const checkUsername = useCallback(
 		async (value: string) => {
@@ -27,17 +28,32 @@ export const SignupForm = ({ prefilledUsername = "", supabaseUrl, anonKey }: Sig
 				setCheckMessage("Letters, numbers, hyphens, underscores only");
 				return;
 			}
+
+			abortRef.current?.abort();
+			const controller = new AbortController();
+			abortRef.current = controller;
+
 			setCheckState("checking");
 			setCheckMessage("...");
 			try {
 				const res = await fetch(
 					`${supabaseUrl}/functions/v1/commerce/check-username/${encodeURIComponent(value)}`,
-					{ headers: { Authorization: `Bearer ${anonKey}` } },
+					{
+						headers: { Authorization: `Bearer ${anonKey}` },
+						signal: controller.signal,
+					},
 				);
+				if (!res.ok) {
+					setCheckState("");
+					setCheckMessage("");
+					return;
+				}
 				const data: Record<string, unknown> = await res.json();
+				if (controller.signal.aborted) return;
 				setCheckState(data.available ? "available" : "unavailable");
 				setCheckMessage(data.available ? "Available!" : (data.reason as string) || "Already taken");
-			} catch {
+			} catch (e) {
+				if (e instanceof DOMException && e.name === "AbortError") return;
 				setCheckState("");
 				setCheckMessage("");
 			}
@@ -95,6 +111,7 @@ export const SignupForm = ({ prefilledUsername = "", supabaseUrl, anonKey }: Sig
 					</p>
 
 					<div className="mt-6">
+						<label htmlFor="signup-username" className="sr-only">Username</label>
 						<div
 							className="flex items-center overflow-hidden rounded-[14px] border transition-colors focus-within:border-[var(--text)]"
 							style={{
@@ -106,6 +123,7 @@ export const SignupForm = ({ prefilledUsername = "", supabaseUrl, anonKey }: Sig
 								superlinks.me/
 							</span>
 							<Input
+								id="signup-username"
 								className="border-0 bg-transparent px-2 shadow-none focus-visible:ring-0"
 								placeholder="username"
 								autoComplete="off"
@@ -118,6 +136,8 @@ export const SignupForm = ({ prefilledUsername = "", supabaseUrl, anonKey }: Sig
 							<p
 								className="mt-1 text-xs font-medium"
 								style={{ color: checkState === "available" ? "var(--success)" : checkState === "unavailable" ? "var(--danger)" : "var(--text-secondary)" }}
+								role="status"
+								aria-live="polite"
 							>
 								{checkMessage}
 							</p>

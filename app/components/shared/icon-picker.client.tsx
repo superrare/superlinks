@@ -26,7 +26,7 @@ export const IconPicker = ({ open, onOpenChange, onSelect, giphyApiKey }: IconPi
 	const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
 	const filteredEmojis = search
-		? EMOJI_DATA.filter(() => true)
+		? EMOJI_DATA.filter((e) => e.includes(search))
 		: EMOJI_DATA;
 
 	const fetchGifs = useCallback(async (query?: string) => {

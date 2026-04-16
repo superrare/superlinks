@@ -1,5 +1,5 @@
 import type { Route } from "./+types/dashboard-admin";
-import { requireAuth } from "~/features/auth/server/auth.server";
+import { requireAuth, withHeaders } from "~/features/auth/server/auth.server";
 import { getEnv } from "~/lib/env.server";
 import { callCommerce } from "~/lib/commerce.server";
 
@@ -10,7 +10,7 @@ export const meta: Route.MetaFunction = () => [
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const { session, headers } = await requireAuth(request, context);
 	const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnv(context);
-	const token = session.access_token;
+	const token = session?.access_token ?? "";
 
 	let isAdmin = false;
 	let users: unknown[] = [];
@@ -33,9 +33,11 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 			});
 			users = result.users ?? [];
 		}
-	} catch {}
+	} catch (e) {
+		console.warn("Admin check failed:", e);
+	}
 
-	return { isAdmin, users };
+	return withHeaders({ isAdmin, users }, headers);
 };
 
 export default function DashboardAdminRoute({ loaderData }: Route.ComponentProps) {
@@ -58,7 +60,6 @@ export default function DashboardAdminRoute({ loaderData }: Route.ComponentProps
 			<p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
 				{loaderData.users.length} registered users.
 			</p>
-			{/* TODO: wire to admin user-table component */}
 		</div>
 	);
 }

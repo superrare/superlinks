@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Route } from "./+types/dashboard-settings";
-import { requireAuth } from "~/features/auth/server/auth.server";
+import { requireAuth, withHeaders } from "~/features/auth/server/auth.server";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
 import { getSupabaseBrowserClient } from "~/lib/supabase.client";
@@ -10,8 +10,8 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
-	const { session, headers } = await requireAuth(request, context);
-	return { email: session.user.email ?? "" };
+	const { user, headers } = await requireAuth(request, context);
+	return withHeaders({ email: user.email ?? "" }, headers);
 };
 
 export default function DashboardSettingsRoute({ loaderData }: Route.ComponentProps) {
@@ -56,7 +56,7 @@ export default function DashboardSettingsRoute({ loaderData }: Route.ComponentPr
 				<div className="mt-3 flex items-center justify-between">
 					<span className="text-sm" style={{ color: "var(--text-secondary)" }}>Theme</span>
 					<Button variant="outline" size="sm" onClick={handleToggleTheme}>
-						{theme === "dark" ? "☀️ Light" : "🌙 Dark"}
+						{theme === "dark" ? "Light" : "Dark"}
 					</Button>
 				</div>
 			</div>

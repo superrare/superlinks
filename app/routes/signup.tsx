@@ -9,8 +9,8 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
-	const { session } = await getOptionalSession(request, context);
-	if (session) throw redirect("/dashboard/links");
+	const { user, headers } = await getOptionalSession(request, context);
+	if (user) throw redirect("/dashboard/links", { headers });
 
 	const url = new URL(request.url);
 	const username = url.searchParams.get("username") ?? "";

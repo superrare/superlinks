@@ -1,19 +1,23 @@
 import { Outlet } from "react-router";
 import type { Route } from "./+types/dashboard-layout";
-import { requireAuth } from "~/features/auth/server/auth.server";
+import { requireAuth, withHeaders } from "~/features/auth/server/auth.server";
 import { SidebarNav } from "~/components/shared/sidebar-nav";
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
-	const { session, headers } = await requireAuth(request, context);
-	return {
-		user: {
-			email: session.user.email,
-			displayName:
-				session.user.user_metadata?.full_name ??
-				session.user.email?.split("@")[0],
-			avatarUrl: session.user.user_metadata?.avatar_url ?? null,
+	const { user, headers } = await requireAuth(request, context);
+	return withHeaders(
+		{
+			user: {
+				id: user.id,
+				email: user.email,
+				displayName:
+					user.user_metadata?.full_name ??
+					user.email?.split("@")[0],
+				avatarUrl: user.user_metadata?.avatar_url ?? null,
+			},
 		},
-	};
+		headers,
+	);
 };
 
 export default function DashboardLayout({ loaderData }: Route.ComponentProps) {

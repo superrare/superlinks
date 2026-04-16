@@ -1,5 +1,14 @@
 const DEFAULT_ACCENT = "#111111";
 
+const SAFE_COLOR_RE = /^#[0-9a-fA-F]{3,8}$|^(?:rgb|hsl|oklch)a?\([^)]{1,80}\)$|^[a-zA-Z]{1,20}$/;
+const SAFE_FONT_RE = /^[a-zA-Z0-9 ,'-]{1,100}$/;
+
+const sanitizeColor = (val: string | undefined, fallback: string): string =>
+	val && SAFE_COLOR_RE.test(val) ? val : fallback;
+
+const sanitizeFont = (val: string | undefined): string | undefined =>
+	val && SAFE_FONT_RE.test(val) ? val : undefined;
+
 interface ThemeConfig {
 	accentColor?: string;
 	socialLinksColor?: string;
@@ -21,15 +30,15 @@ interface ThemeConfig {
 export const resolveThemeVars = (theme: ThemeConfig | null | undefined) => {
 	const t = theme && typeof theme === "object" ? theme : {};
 
-	const accentColor = t.accentColor ?? DEFAULT_ACCENT;
-	const socialLinksColor = t.socialLinksColor ?? accentColor;
+	const accentColor = sanitizeColor(t.accentColor, DEFAULT_ACCENT);
+	const socialLinksColor = sanitizeColor(t.socialLinksColor, accentColor);
 	const bgStyle = t.bgStyle ?? "solid";
-	const bgColor = t.bgColor ?? "";
-	const effectiveBtnColor = t.btnColor || DEFAULT_ACCENT;
-	const fontFamily = t.fontFamily ?? "Inter";
-	const fontColor = t.fontColor ?? "";
+	const bgColor = sanitizeColor(t.bgColor, "");
+	const effectiveBtnColor = sanitizeColor(t.btnColor, DEFAULT_ACCENT);
+	const fontFamily = sanitizeFont(t.fontFamily) ?? "Inter";
+	const fontColor = sanitizeColor(t.fontColor, "");
 	const avatarSize = t.avatarSize ?? "medium";
-	const avatarShadowColor = t.avatarShadowColor ?? "";
+	const avatarShadowColor = sanitizeColor(t.avatarShadowColor, "");
 	const wallpaperStyle = t.wallpaperStyle ?? (t.wallpaper === false ? "none" : "waves");
 
 	const legacyBtnStyle = t.btnStyle ?? "rounded";
@@ -39,7 +48,7 @@ export const resolveThemeVars = (theme: ThemeConfig | null | undefined) => {
 		if (legacyBtnStyle === "square") return "square";
 		return "round";
 	})();
-	const btnTextColor = t.btnTextColor ?? "";
+	const btnTextColor = sanitizeColor(t.btnTextColor, "");
 
 	const avatarSizes: Record<string, string> = { small: "64px", medium: "96px", large: "130px" };
 	const avatarPx = avatarSizes[avatarSize] ?? "96px";

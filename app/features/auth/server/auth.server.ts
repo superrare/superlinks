@@ -1,15 +1,17 @@
-import { redirect, type AppLoadContext } from "react-router";
+import { redirect, data, type AppLoadContext } from "react-router";
 import { createSupabaseServerClient } from "~/lib/supabase.server";
 
 export const requireAuth = async (request: Request, context: AppLoadContext) => {
 	const { supabase, headers } = createSupabaseServerClient(request, context);
-	const { data: { session } } = await supabase.auth.getSession();
+	const { data: { user }, error } = await supabase.auth.getUser();
 
-	if (!session) {
+	if (error || !user) {
 		throw redirect("/login", { headers });
 	}
 
-	return { session, supabase, headers };
+	const { data: { session } } = await supabase.auth.getSession();
+
+	return { user, session, supabase, headers };
 };
 
 export const getOptionalSession = async (
@@ -17,7 +19,13 @@ export const getOptionalSession = async (
 	context: AppLoadContext,
 ) => {
 	const { supabase, headers } = createSupabaseServerClient(request, context);
+	const { data: { user } } = await supabase.auth.getUser();
 	const { data: { session } } = await supabase.auth.getSession();
 
-	return { session, supabase, headers };
+	return { user, session, supabase, headers };
 };
+
+export const withHeaders = <T extends Record<string, unknown>>(
+	payload: T,
+	headers: Headers,
+) => data(payload, { headers });

@@ -2,7 +2,9 @@ import type { Route } from "./+types/home";
 import { getOptionalSession } from "~/features/auth/server/auth.server";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { Sheet, SheetContent, SheetTrigger } from "~/components/ui/sheet";
 import { useState } from "react";
+import { MenuIcon } from "lucide-react";
 
 export const meta: Route.MetaFunction = () => [
 	{ title: "SuperLinks.me — Everything your fans need, all in one place" },
@@ -12,8 +14,8 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
-	const { session } = await getOptionalSession(request, context);
-	return { isLoggedIn: !!session };
+	const { user } = await getOptionalSession(request, context);
+	return { isLoggedIn: !!user };
 };
 
 export default function HomePage({ loaderData }: Route.ComponentProps) {
@@ -39,10 +41,34 @@ export default function HomePage({ loaderData }: Route.ComponentProps) {
 							<Button asChild><a href="/dashboard/links">Dashboard</a></Button>
 						) : (
 							<>
-								<a href="/login" className="px-4 py-2 text-sm font-semibold">Log in</a>
-								<a href="/signup" className="px-4 py-2 text-sm font-semibold">Sign up free</a>
+								<a href="/login" className="hidden px-4 py-2 text-sm font-semibold sm:inline">Log in</a>
+								<Button asChild className="hidden sm:inline-flex"><a href="/signup">Sign up free</a></Button>
 							</>
 						)}
+						<Sheet>
+							<SheetTrigger asChild>
+								<Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu">
+									<MenuIcon className="h-5 w-5" />
+								</Button>
+							</SheetTrigger>
+							<SheetContent side="right" className="w-64 p-6">
+								<nav className="mt-8 flex flex-col gap-4">
+									<a href="#audience" className="text-base font-medium">Audience</a>
+									<a href="#monetize" className="text-base font-medium">Monetize</a>
+									<a href="#analytics" className="text-base font-medium">Analytics</a>
+									<a href="/docs" className="text-base font-medium">Docs</a>
+									<hr className="my-2" style={{ borderColor: "var(--border)" }} />
+									{isLoggedIn ? (
+										<a href="/dashboard/links" className="text-base font-semibold">Dashboard</a>
+									) : (
+										<>
+											<a href="/login" className="text-base font-medium">Log in</a>
+											<Button asChild><a href="/signup">Sign up free</a></Button>
+										</>
+									)}
+								</nav>
+							</SheetContent>
+						</Sheet>
 					</div>
 				</nav>
 			</div>

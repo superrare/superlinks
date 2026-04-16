@@ -19,7 +19,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			action: "list-storefronts",
 		});
 		storefronts = result.storefronts ?? [];
-	} catch {}
+	} catch (e) {
+		console.warn("Failed to load storefronts:", e);
+	}
 
 	return { storefronts };
 };

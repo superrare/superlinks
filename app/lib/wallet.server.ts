@@ -6,6 +6,15 @@ interface WalletCallOptions {
 	body?: Record<string, unknown>;
 }
 
+const safeJson = async (res: Response): Promise<Record<string, unknown>> => {
+	const text = await res.text();
+	try {
+		return JSON.parse(text) as Record<string, unknown>;
+	} catch {
+		return { error: `Non-JSON response (${res.status}): ${text.slice(0, 200)}` };
+	}
+};
+
 export const callWallet = async <T = unknown>({
 	supabaseUrl,
 	anonKey,
@@ -23,7 +32,7 @@ export const callWallet = async <T = unknown>({
 		body: JSON.stringify({ action, ...body }),
 	});
 
-	const data: Record<string, unknown> = await res.json();
+	const data = await safeJson(res);
 	if (!res.ok) throw new Error((data.error as string) ?? `Wallet call failed (${res.status})`);
 	return data as T;
 };

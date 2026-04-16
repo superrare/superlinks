@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFetcher } from "react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Button } from "~/components/ui/button";
@@ -34,9 +34,21 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 	const [newLinkTitle, setNewLinkTitle] = useState("");
 	const [newLinkUrl, setNewLinkUrl] = useState("");
 
+	useEffect(() => {
+		if (fetcher.state === "idle" && fetcher.data) {
+			const result = fetcher.data as { ok?: boolean; error?: string };
+			if (result.ok) {
+				toast.success("Changes saved");
+			} else if (result.error) {
+				toast.error(result.error);
+			}
+		}
+	}, [fetcher.state, fetcher.data]);
+
 	const handleSaveProfile = () => {
 		const formData = new FormData();
 		formData.set("intent", "update-profile");
+		formData.set("handle", handle);
 		formData.set("display_name", displayName);
 		formData.set("bio", bio);
 		formData.set("website", website);
@@ -44,7 +56,6 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 		formData.set("telegram", telegram);
 		formData.set("farcaster", farcaster);
 		fetcher.submit(formData, { method: "post" });
-		toast.success("Profile saved");
 	};
 
 	const handleAddLink = () => {
@@ -56,7 +67,6 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 		fetcher.submit(formData, { method: "post" });
 		setNewLinkTitle("");
 		setNewLinkUrl("");
-		toast.success("Link added");
 	};
 
 	const handleDeleteLink = (linkId: string) => {
@@ -64,7 +74,6 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 		formData.set("intent", "delete-link");
 		formData.set("linkId", linkId);
 		fetcher.submit(formData, { method: "post" });
-		toast.success("Link deleted");
 	};
 
 	if (!storefront) {
@@ -97,7 +106,7 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 							</a>
 						</Button>
 						<Button size="sm" onClick={handleSaveProfile} disabled={fetcher.state !== "idle"}>
-							Save
+							{fetcher.state !== "idle" ? "Saving..." : "Save"}
 						</Button>
 					</div>
 				</div>
@@ -109,7 +118,6 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 					</TabsList>
 
 					<TabsContent value="content" className="mt-6 space-y-8">
-						{/* Profile form */}
 						<section className="space-y-4">
 							<h2 className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
 								Profile
@@ -133,7 +141,6 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 							</div>
 						</section>
 
-						{/* Socials */}
 						<section className="space-y-4">
 							<h2 className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
 								Social Links
@@ -158,13 +165,10 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 							</div>
 						</section>
 
-						{/* Links */}
 						<section className="space-y-4">
-							<div className="flex items-center justify-between">
-								<h2 className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
-									Custom Links
-								</h2>
-							</div>
+							<h2 className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
+								Custom Links
+							</h2>
 
 							<div className="space-y-2">
 								{existingLinks.map((link: any) => (
@@ -186,8 +190,14 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 							</div>
 
 							<div className="flex gap-2">
-								<Input placeholder="Title" value={newLinkTitle} onChange={(e) => setNewLinkTitle(e.target.value)} className="flex-1" />
-								<Input placeholder="https://..." value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} className="flex-1" />
+								<div className="flex-1">
+									<Label htmlFor="new-link-title" className="sr-only">Link title</Label>
+									<Input id="new-link-title" placeholder="Title" value={newLinkTitle} onChange={(e) => setNewLinkTitle(e.target.value)} />
+								</div>
+								<div className="flex-1">
+									<Label htmlFor="new-link-url" className="sr-only">Link URL</Label>
+									<Input id="new-link-url" placeholder="https://..." value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} />
+								</div>
 								<Button variant="outline" onClick={handleAddLink}>Add</Button>
 							</div>
 						</section>
@@ -201,23 +211,16 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 							<p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
 								Customize colors, fonts, and button styles for your public page.
 							</p>
-							{/* TODO: wire theme controls from prototype's design tab */}
 						</section>
 					</TabsContent>
 				</Tabs>
 			</div>
 
-			{/* Live preview sidebar */}
 			<aside className="hidden lg:block">
 				<div className="sticky top-8">
 					<div
 						className="overflow-hidden rounded-[2rem] border p-6 shadow-lg"
-						style={{
-							background: "var(--bg-elevated)",
-							borderColor: "var(--border-subtle)",
-							width: "280px",
-							minHeight: "500px",
-						}}
+						style={{ background: "var(--bg-elevated)", borderColor: "var(--border-subtle)", width: "280px", minHeight: "500px" }}
 					>
 						<div className="mx-auto mb-6 h-1.5 w-16 rounded-full" style={{ background: "var(--border)" }} />
 						<div className="text-center">

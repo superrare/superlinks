@@ -1,5 +1,3 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-
 interface CommerceCallOptions {
 	supabaseUrl: string;
 	anonKey: string;
@@ -7,6 +5,15 @@ interface CommerceCallOptions {
 	action: string;
 	body?: Record<string, unknown>;
 }
+
+const safeJson = async (res: Response): Promise<Record<string, unknown>> => {
+	const text = await res.text();
+	try {
+		return JSON.parse(text) as Record<string, unknown>;
+	} catch {
+		return { error: `Non-JSON response (${res.status}): ${text.slice(0, 200)}` };
+	}
+};
 
 export const callCommerce = async <T = unknown>({
 	supabaseUrl,
@@ -30,7 +37,7 @@ export const callCommerce = async <T = unknown>({
 		body: JSON.stringify({ action, ...body }),
 	});
 
-	const data: Record<string, unknown> = await res.json();
+	const data = await safeJson(res);
 	if (!res.ok) throw new Error((data.error as string) ?? `Commerce call failed (${res.status})`);
 	return data as T;
 };
@@ -39,7 +46,7 @@ export const fetchStore = async (supabaseUrl: string, anonKey: string, slug: str
 	const res = await fetch(`${supabaseUrl}/functions/v1/commerce/store/${slug}`, {
 		headers: { Authorization: `Bearer ${anonKey}` },
 	});
-	const data: Record<string, unknown> = await res.json();
+	const data = await safeJson(res);
 	if (!res.ok) throw new Error((data.error as string) ?? "Store not found");
 	return data;
 };
@@ -49,5 +56,5 @@ export const checkUsername = async (supabaseUrl: string, anonKey: string, userna
 		`${supabaseUrl}/functions/v1/commerce/check-username/${encodeURIComponent(username)}`,
 		{ headers: { Authorization: `Bearer ${anonKey}` } },
 	);
-	return res.json() as Promise<Record<string, unknown>>;
+	return safeJson(res);
 };

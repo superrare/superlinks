@@ -4,7 +4,7 @@ import { fetchStore } from "~/lib/commerce.server";
 import { getOptionalSession } from "~/features/auth/server/auth.server";
 import { resolveThemeVars } from "~/features/creator-page/lib/theming";
 import { generateWallpaperSvg } from "~/features/creator-page/lib/wallpaper";
-import { escapeHtml, timeAgo } from "~/lib/utils";
+import { timeAgo } from "~/lib/utils";
 import { lazy, Suspense } from "react";
 
 const CheckoutModal = lazy(() => import("~/features/creator-page/components/checkout-modal.client"));
@@ -35,10 +35,12 @@ export const loader = async ({ params, request, context }: Route.LoaderArgs) => 
 	const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnv(context);
 
 	try {
-		const data = await fetchStore(SUPABASE_URL, SUPABASE_ANON_KEY, params.handle);
-		const { session } = await getOptionalSession(request, context);
+		const [data, { user }] = await Promise.all([
+			fetchStore(SUPABASE_URL, SUPABASE_ANON_KEY, params.handle),
+			getOptionalSession(request, context),
+		]);
 		const storefront = (data as Record<string, any>).storefront;
-		const isOwner = !!(session && storefront?.owner_id === session.user.id);
+		const isOwner = !!(user && storefront?.owner_id === user.id);
 
 		return {
 			storefront: storefront ?? {},
@@ -81,8 +83,6 @@ export default function CreatorPage({ loaderData }: Route.ComponentProps) {
 	};
 
 	const customLinks = (links ?? []) as Array<{ id: string; title: string; url: string; icon: string | null; sort_order: number }>;
-	const appProducts = products.filter((p: any) => p.content_type === "app");
-	const fundraiserProducts = products.filter((p: any) => p.content_type === "fundraiser");
 	const shopProducts = products.filter((p: any) => p.content_type !== "app" && p.content_type !== "fundraiser");
 
 	return (
