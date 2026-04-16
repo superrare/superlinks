@@ -1,8 +1,8 @@
 import type { Route } from "./+types/creator-page";
+import type { LinkDescriptor } from "react-router";
 import { getEnv } from "~/lib/env.server";
 import { fetchStore } from "~/lib/commerce.server";
-import { getOptionalSession } from "~/features/auth/server/auth.server";
-import { resolveThemeVars } from "~/features/creator-page/lib/theming";
+import { resolveThemeVars, getFontStylesheetUrl } from "~/features/creator-page/lib/theming";
 import { generateWallpaperSvg } from "~/features/creator-page/lib/wallpaper";
 import { timeAgo } from "~/lib/utils";
 import { lazy, Suspense } from "react";
@@ -25,6 +25,13 @@ export const meta: Route.MetaFunction = ({ data }: { data?: Record<string, any> 
 	];
 };
 
+export const links = ({ data }: { data?: Record<string, any> }): LinkDescriptor[] => {
+	const font = data?.storefront?.theme?.fontFamily as string | undefined;
+	if (!font || font === "Inter") return [];
+	const href = getFontStylesheetUrl(font);
+	return href ? [{ rel: "stylesheet", href }] : [];
+};
+
 const RESERVED_PATHS = new Set([".well-known", "favicon.ico", "robots.txt", "sitemap.xml"]);
 
 export const loader = async ({ params, request, context }: Route.LoaderArgs) => {
@@ -35,19 +42,14 @@ export const loader = async ({ params, request, context }: Route.LoaderArgs) => 
 	const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnv(context);
 
 	try {
-		const [data, { user }] = await Promise.all([
-			fetchStore(SUPABASE_URL, SUPABASE_ANON_KEY, params.handle),
-			getOptionalSession(request, context),
-		]);
+		const data = await fetchStore(SUPABASE_URL, SUPABASE_ANON_KEY, params.handle);
 		const storefront = (data as Record<string, any>).storefront;
-		const isOwner = !!(user && storefront?.owner_id === user.id);
 
 		return {
 			storefront: storefront ?? {},
 			products: ((data as Record<string, any>).products ?? []) as any[],
 			posts: ((data as Record<string, any>).posts ?? []) as any[],
 			links: ((data as Record<string, any>).links ?? []) as any[],
-			isOwner,
 			ENV: getEnv(context),
 		};
 	} catch {
@@ -60,7 +62,6 @@ export default function CreatorPage({ loaderData }: Route.ComponentProps) {
 	const products = loaderData.products;
 	const posts = loaderData.posts;
 	const links = loaderData.links;
-	const isOwner = loaderData.isOwner;
 	const displayName = s.profiles?.display_name ?? s.name ?? s.slug;
 	const username = s.profiles?.username ?? s.slug;
 	const theme = resolveThemeVars(s.theme);

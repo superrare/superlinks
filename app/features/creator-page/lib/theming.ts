@@ -1,5 +1,17 @@
 const DEFAULT_ACCENT = "#111111";
 
+const FONT_URLS: Record<string, string> = {
+	"JetBrains Mono": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap",
+	"Instrument Serif": "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap",
+	Switzer: "https://api.fontshare.com/v2/css?f[]=switzer@400;500;600;700&display=swap",
+};
+
+export const getFontStylesheetUrl = (family: string): string | null => {
+	if (FONT_URLS[family]) return FONT_URLS[family];
+	const encoded = encodeURIComponent(family);
+	return `https://fonts.googleapis.com/css2?family=${encoded}:wght@400;500;600;700&display=swap`;
+};
+
 const SAFE_COLOR_RE = /^#[0-9a-fA-F]{3,8}$|^(?:rgb|hsl|oklch)a?\([^)]{1,80}\)$|^[a-zA-Z]{1,20}$/;
 const SAFE_FONT_RE = /^[a-zA-Z0-9 ,'-]{1,100}$/;
 const VALID_HEADER_LAYOUTS = new Set(["left", "center"]);

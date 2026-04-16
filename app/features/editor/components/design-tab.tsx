@@ -21,6 +21,20 @@ const FONTS = [
 	"DM Sans", "Outfit", "Sora", "Crimson Text", "Work Sans",
 ];
 
+const GOOGLE_FONTS = FONTS.filter((f) => !["Inter", "Switzer", "JetBrains Mono", "Instrument Serif"].includes(f));
+
+const loadGoogleFont = (family: string) => {
+	const id = `gf-${family.replace(/\s+/g, "-")}`;
+	if (typeof document === "undefined" || document.getElementById(id)) return;
+	const link = document.createElement("link");
+	link.id = id;
+	link.rel = "stylesheet";
+	link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@400;500;600&display=swap`;
+	document.head.appendChild(link);
+};
+
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
 const BTN_FILL_OPTIONS = [
 	{ value: "solid", label: "Solid" },
 	{ value: "outline", label: "Outline" },
@@ -57,6 +71,82 @@ const HEADER_LAYOUT_OPTIONS = [
 	{ value: "left", label: "Left-aligned" },
 ];
 
+interface ToggleGroupProps {
+	options: Array<{ value: string; label: string }>;
+	value: string;
+	onChange: (value: string) => void;
+	compact?: boolean;
+}
+
+const ToggleGroup = ({ options, value, onChange, compact }: ToggleGroupProps) => (
+	<div className="flex gap-2">
+		{options.map((opt) => (
+			<button
+				key={opt.value}
+				type="button"
+				onClick={() => onChange(opt.value)}
+				className={`rounded-lg border text-sm font-medium transition-colors ${
+					compact ? "flex h-9 w-9 items-center justify-center font-semibold" : "px-4 py-2"
+				} ${
+					value === opt.value
+						? "border-[var(--text)] bg-[var(--text)] text-[var(--bg)]"
+						: "border-[var(--border)] hover:border-[var(--text)]"
+				}`}
+			>
+				{opt.label}
+			</button>
+		))}
+	</div>
+);
+
+interface ColorFieldProps {
+	label: string;
+	value: string;
+	fallback?: string;
+	onChange: (value: string) => void;
+	placeholder?: string;
+}
+
+const ColorField = ({ label, value, fallback = "#111111", onChange, placeholder }: ColorFieldProps) => {
+	const [hex, setHex] = useState(value);
+
+	useEffect(() => {
+		setHex(value);
+	}, [value]);
+
+	const handleHexBlur = () => {
+		if (hex === "" && placeholder) {
+			onChange("");
+			return;
+		}
+		if (HEX_RE.test(hex)) {
+			onChange(hex);
+		} else {
+			setHex(value);
+		}
+	};
+
+	return (
+		<div className="flex items-center gap-3">
+			<Label className="shrink-0 text-xs">{label}</Label>
+			<Input
+				type="color"
+				className="h-8 w-10 cursor-pointer rounded border-0 p-0"
+				value={value || fallback}
+				onChange={(e) => { onChange(e.target.value); setHex(e.target.value); }}
+			/>
+			<Input
+				className="w-24 font-mono text-xs"
+				value={hex}
+				onChange={(e) => setHex(e.target.value)}
+				onBlur={handleHexBlur}
+				onKeyDown={(e) => { if (e.key === "Enter") handleHexBlur(); }}
+				placeholder={placeholder}
+			/>
+		</div>
+	);
+};
+
 interface DesignTabProps {
 	theme: ThemeConfig | null | undefined;
 	onThemeChange: (theme: PresetTheme) => void;
@@ -70,11 +160,11 @@ const themeToPresetTheme = (t: ThemeConfig | null | undefined): PresetTheme => {
 		bgColor: cfg.bgColor ?? "#ffffff",
 		fontFamily: cfg.fontFamily ?? "Inter",
 		fontColor: cfg.fontColor ?? "#111111",
-		btnFill: cfg.btnFill ?? "solid",
+		btnFill: cfg.btnFill ?? (cfg.btnStyle === "outline" ? "outline" : "solid"),
 		btnRadius: cfg.btnRadius ?? "round",
-		btnColor: cfg.btnColor ?? "#111111",
+		btnColor: cfg.btnColor ?? cfg.accentColor ?? "#111111",
 		btnTextColor: cfg.btnTextColor ?? "#111111",
-		wallpaperStyle: cfg.wallpaperStyle ?? "waves",
+		wallpaperStyle: cfg.wallpaperStyle ?? (cfg.wallpaper === false ? "none" : "waves"),
 		avatarSize: cfg.avatarSize ?? "medium",
 		avatarShadowColor: cfg.avatarShadowColor ?? "",
 		headerLayout: cfg.headerLayout ?? "center",
@@ -84,10 +174,15 @@ const themeToPresetTheme = (t: ThemeConfig | null | undefined): PresetTheme => {
 export const DesignTab = ({ theme, onThemeChange }: DesignTabProps) => {
 	const fetcher = useFetcher();
 	const savedThemeRef = useRef<PresetTheme>(themeToPresetTheme(theme));
+	const pendingFieldsRef = useRef<PresetTheme | null>(null);
 
 	const [fields, setFields] = useState<PresetTheme>(() => themeToPresetTheme(theme));
 
 	const activePreset = useMemo(() => detectActivePreset(fields), [fields]);
+
+	useEffect(() => {
+		GOOGLE_FONTS.forEach(loadGoogleFont);
+	}, []);
 
 	const updateField = useCallback(<K extends keyof PresetTheme>(key: K, value: PresetTheme[K]) => {
 		setFields((prev) => {
@@ -112,16 +207,19 @@ export const DesignTab = ({ theme, onThemeChange }: DesignTabProps) => {
 	useEffect(() => {
 		if (fetcher.state === "idle" && fetcher.data) {
 			const result = fetcher.data as { ok?: boolean; error?: string };
-			if (result.ok) {
-				savedThemeRef.current = { ...fields };
+			if (result.ok && pendingFieldsRef.current) {
+				savedThemeRef.current = pendingFieldsRef.current;
+				pendingFieldsRef.current = null;
 				toast.success("Theme saved");
 			} else if (result.error) {
+				pendingFieldsRef.current = null;
 				toast.error(result.error);
 			}
 		}
-	}, [fetcher.state, fetcher.data, fields]);
+	}, [fetcher.state, fetcher.data]);
 
 	const handleSave = () => {
+		pendingFieldsRef.current = { ...fields };
 		const formData = new FormData();
 		formData.set("intent", "update-profile");
 		formData.set("theme", JSON.stringify(fields));
@@ -130,145 +228,35 @@ export const DesignTab = ({ theme, onThemeChange }: DesignTabProps) => {
 
 	return (
 		<div className="space-y-8">
-			{/* Preset picker */}
 			<section className="space-y-3">
 				<Label>Theme</Label>
 				<ThemePresetPicker activePreset={activePreset} onSelect={handlePresetSelect} />
 			</section>
 
-			{/* Header layout */}
 			<section className="space-y-3">
 				<Label>Header Layout</Label>
-				<div className="flex gap-2">
-					{HEADER_LAYOUT_OPTIONS.map((opt) => (
-						<button
-							key={opt.value}
-							type="button"
-							onClick={() => updateField("headerLayout", opt.value)}
-							className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-								fields.headerLayout === opt.value
-									? "border-[var(--text)] bg-[var(--text)] text-[var(--bg)]"
-									: "border-[var(--border)] hover:border-[var(--text)]"
-							}`}
-						>
-							{opt.label}
-						</button>
-					))}
-				</div>
+				<ToggleGroup options={HEADER_LAYOUT_OPTIONS} value={fields.headerLayout} onChange={(v) => updateField("headerLayout", v)} />
 			</section>
 
-			{/* Avatar */}
 			<section className="space-y-3">
 				<Label>Avatar Size</Label>
-				<div className="flex gap-2">
-					{AVATAR_SIZE_OPTIONS.map((opt) => (
-						<button
-							key={opt.value}
-							type="button"
-							onClick={() => updateField("avatarSize", opt.value)}
-							className={`flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-semibold transition-colors ${
-								fields.avatarSize === opt.value
-									? "border-[var(--text)] bg-[var(--text)] text-[var(--bg)]"
-									: "border-[var(--border)] hover:border-[var(--text)]"
-							}`}
-						>
-							{opt.label}
-						</button>
-					))}
-				</div>
-
-				<div className="flex items-center gap-3">
-					<Label className="shrink-0">Avatar Shadow</Label>
-					<Input
-						type="color"
-						className="h-8 w-10 cursor-pointer rounded border-0 p-0"
-						value={fields.avatarShadowColor || "#111111"}
-						onChange={(e) => updateField("avatarShadowColor", e.target.value)}
-					/>
-					<Input
-						className="w-24 font-mono text-xs"
-						value={fields.avatarShadowColor}
-						onChange={(e) => updateField("avatarShadowColor", e.target.value)}
-						placeholder="none"
-					/>
-				</div>
+				<ToggleGroup options={AVATAR_SIZE_OPTIONS} value={fields.avatarSize} onChange={(v) => updateField("avatarSize", v)} compact />
+				<ColorField label="Avatar Shadow" value={fields.avatarShadowColor} onChange={(v) => updateField("avatarShadowColor", v)} placeholder="none" />
 			</section>
 
-			{/* Button style */}
 			<section className="space-y-3">
 				<Label>Button Style</Label>
-				<div className="flex gap-2">
-					{BTN_FILL_OPTIONS.map((opt) => (
-						<button
-							key={opt.value}
-							type="button"
-							onClick={() => updateField("btnFill", opt.value)}
-							className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-								fields.btnFill === opt.value
-									? "border-[var(--text)] bg-[var(--text)] text-[var(--bg)]"
-									: "border-[var(--border)] hover:border-[var(--text)]"
-							}`}
-						>
-							{opt.label}
-						</button>
-					))}
-				</div>
+				<ToggleGroup options={BTN_FILL_OPTIONS} value={fields.btnFill} onChange={(v) => updateField("btnFill", v)} />
 
 				<Label>Button Corners</Label>
-				<div className="flex gap-2">
-					{BTN_RADIUS_OPTIONS.map((opt) => (
-						<button
-							key={opt.value}
-							type="button"
-							onClick={() => updateField("btnRadius", opt.value)}
-							className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-								fields.btnRadius === opt.value
-									? "border-[var(--text)] bg-[var(--text)] text-[var(--bg)]"
-									: "border-[var(--border)] hover:border-[var(--text)]"
-							}`}
-						>
-							{opt.label}
-						</button>
-					))}
-				</div>
+				<ToggleGroup options={BTN_RADIUS_OPTIONS} value={fields.btnRadius} onChange={(v) => updateField("btnRadius", v)} />
 
 				<div className="grid grid-cols-2 gap-3">
-					<div className="space-y-1">
-						<Label className="text-xs">Button Color</Label>
-						<div className="flex items-center gap-2">
-							<Input
-								type="color"
-								className="h-8 w-10 cursor-pointer rounded border-0 p-0"
-								value={fields.btnColor || "#111111"}
-								onChange={(e) => updateField("btnColor", e.target.value)}
-							/>
-							<Input
-								className="flex-1 font-mono text-xs"
-								value={fields.btnColor}
-								onChange={(e) => updateField("btnColor", e.target.value)}
-							/>
-						</div>
-					</div>
-					<div className="space-y-1">
-						<Label className="text-xs">Button Text</Label>
-						<div className="flex items-center gap-2">
-							<Input
-								type="color"
-								className="h-8 w-10 cursor-pointer rounded border-0 p-0"
-								value={fields.btnTextColor || "#111111"}
-								onChange={(e) => updateField("btnTextColor", e.target.value)}
-							/>
-							<Input
-								className="flex-1 font-mono text-xs"
-								value={fields.btnTextColor}
-								onChange={(e) => updateField("btnTextColor", e.target.value)}
-							/>
-						</div>
-					</div>
+					<ColorField label="Button Color" value={fields.btnColor} onChange={(v) => updateField("btnColor", v)} />
+					<ColorField label="Button Text" value={fields.btnTextColor} onChange={(v) => updateField("btnTextColor", v)} />
 				</div>
 			</section>
 
-			{/* Font */}
 			<section className="space-y-3">
 				<Label>Font</Label>
 				<Select value={fields.fontFamily} onValueChange={(v) => updateField("fontFamily", v)}>
@@ -283,42 +271,14 @@ export const DesignTab = ({ theme, onThemeChange }: DesignTabProps) => {
 						))}
 					</SelectContent>
 				</Select>
-
-				<div className="flex items-center gap-3">
-					<Label className="shrink-0 text-xs">Font Color</Label>
-					<Input
-						type="color"
-						className="h-8 w-10 cursor-pointer rounded border-0 p-0"
-						value={fields.fontColor || "#111111"}
-						onChange={(e) => updateField("fontColor", e.target.value)}
-					/>
-					<Input
-						className="w-24 font-mono text-xs"
-						value={fields.fontColor}
-						onChange={(e) => updateField("fontColor", e.target.value)}
-					/>
-				</div>
+				<ColorField label="Font Color" value={fields.fontColor} onChange={(v) => updateField("fontColor", v)} />
 			</section>
 
-			{/* Social links color */}
 			<section className="space-y-3">
 				<Label>Social Links Color</Label>
-				<div className="flex items-center gap-3">
-					<Input
-						type="color"
-						className="h-8 w-10 cursor-pointer rounded border-0 p-0"
-						value={fields.socialLinksColor || "#111111"}
-						onChange={(e) => updateField("socialLinksColor", e.target.value)}
-					/>
-					<Input
-						className="w-24 font-mono text-xs"
-						value={fields.socialLinksColor}
-						onChange={(e) => updateField("socialLinksColor", e.target.value)}
-					/>
-				</div>
+				<ColorField label="Color" value={fields.socialLinksColor} onChange={(v) => updateField("socialLinksColor", v)} />
 			</section>
 
-			{/* Background */}
 			<section className="space-y-3">
 				<Label>Background</Label>
 				<Select value={fields.bgStyle} onValueChange={(v) => updateField("bgStyle", v)}>
@@ -331,45 +291,14 @@ export const DesignTab = ({ theme, onThemeChange }: DesignTabProps) => {
 						))}
 					</SelectContent>
 				</Select>
-
-				<div className="flex items-center gap-3">
-					<Label className="shrink-0 text-xs">Background Color</Label>
-					<Input
-						type="color"
-						className="h-8 w-10 cursor-pointer rounded border-0 p-0"
-						value={fields.bgColor || "#ffffff"}
-						onChange={(e) => updateField("bgColor", e.target.value)}
-					/>
-					<Input
-						className="w-24 font-mono text-xs"
-						value={fields.bgColor}
-						onChange={(e) => updateField("bgColor", e.target.value)}
-					/>
-				</div>
+				<ColorField label="Background Color" value={fields.bgColor} fallback="#ffffff" onChange={(v) => updateField("bgColor", v)} />
 			</section>
 
-			{/* Wallpaper */}
 			<section className="space-y-3">
 				<Label>Wallpaper</Label>
-				<div className="flex gap-2">
-					{WALLPAPER_OPTIONS.map((opt) => (
-						<button
-							key={opt.value}
-							type="button"
-							onClick={() => updateField("wallpaperStyle", opt.value)}
-							className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-								fields.wallpaperStyle === opt.value
-									? "border-[var(--text)] bg-[var(--text)] text-[var(--bg)]"
-									: "border-[var(--border)] hover:border-[var(--text)]"
-							}`}
-						>
-							{opt.label}
-						</button>
-					))}
-				</div>
+				<ToggleGroup options={WALLPAPER_OPTIONS} value={fields.wallpaperStyle} onChange={(v) => updateField("wallpaperStyle", v)} />
 			</section>
 
-			{/* Save */}
 			<Button onClick={handleSave} disabled={fetcher.state !== "idle"} className="w-full">
 				{fetcher.state !== "idle" ? "Saving..." : "Save Theme"}
 			</Button>

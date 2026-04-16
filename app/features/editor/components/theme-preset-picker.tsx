@@ -100,10 +100,10 @@ export const ThemePresetPicker = ({ activePreset, onSelect }: ThemePresetPickerP
 					<div className="mb-1 h-[18px] w-[18px] shrink-0 rounded-full" style={{ background: "#d5d0c8" }} />
 					<div className="mb-[3px] h-[3px] w-1/2 shrink-0 rounded-sm" style={{ background: "#1a1a18" }} />
 					<div className="mb-1.5 h-0.5 w-[65%] shrink-0 rounded-sm opacity-40" style={{ background: "#1a1a18" }} />
-					<ThumbRow type="hairline" color="#1a1a18" borderColor="rgba(26,26,24,0.15)" width="55%" />
-					<ThumbRow type="hairline" color="#1a1a18" borderColor="rgba(26,26,24,0.15)" width="50%" />
-					<ThumbRow type="hairline" color="#1a1a18" borderColor="rgba(26,26,24,0.15)" width="42%" />
-					<ThumbRow type="hairline" color="#1a1a18" borderColor="rgba(26,26,24,0.15)" width="48%" />
+				<ThumbRow type="round" color="#1a1a18" borderColor="rgba(26,26,24,0.15)" width="55%" />
+				<ThumbRow type="round" color="#1a1a18" borderColor="rgba(26,26,24,0.15)" width="50%" />
+				<ThumbRow type="round" color="#1a1a18" borderColor="rgba(26,26,24,0.15)" width="42%" />
+				<ThumbRow type="round" color="#1a1a18" borderColor="rgba(26,26,24,0.15)" width="48%" />
 				</div>
 				<span>Paper</span>
 			</button>
