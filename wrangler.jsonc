@@ -8,7 +8,9 @@
 		"enabled": true
 	},
 	"upload_source_maps": true,
+	// Public env vars — safe to commit. Secrets go in dashboard + .dev.vars
 	"vars": {
-		"VALUE_FROM_CLOUDFLARE": "Hello from Cloudflare"
+		"SUPABASE_URL": "https://your-project.supabase.co",
+		"SUPABASE_ANON_KEY": "your-anon-key"
 	}
 }

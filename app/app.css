@@ -1,16 +1,211 @@
 @import "tailwindcss" source(".");
 
 @theme {
-	--font-sans:
-		"Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+	--font-sans: "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
 		"Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+	--font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+		Consolas, "Liberation Mono", "Courier New", monospace;
+
+	--radius-sm: 0.5rem;
+	--radius-md: 1rem;
+	--radius-lg: 1.5rem;
+	--radius-xl: 2rem;
+	--radius-full: 9999px;
+
+	--animate-spin: spin 1s linear infinite;
+	--animate-fade-in: fade-in 0.2s ease;
+	--animate-slide-up: slide-up 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+	--animate-page-in: page-in 0.3s ease;
+	--animate-pop-in: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-html,
-body {
-	@apply bg-white dark:bg-gray-950;
+@keyframes spin {
+	to { transform: rotate(360deg); }
+}
+@keyframes fade-in {
+	from { opacity: 0; transform: translateY(8px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-up {
+	from { transform: translateY(100%); }
+	to { transform: translateY(0); }
+}
+@keyframes page-in {
+	from { opacity: 0; transform: translateY(12px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pop-in {
+	from { transform: scale(0); }
+	to { transform: scale(1); }
+}
 
-	@media (prefers-color-scheme: dark) {
-		color-scheme: dark;
+@theme inline {
+	--color-background: var(--bg);
+	--color-foreground: var(--text);
+	--color-primary: var(--accent);
+	--color-primary-foreground: var(--accent-text);
+	--color-secondary: var(--bg-surface);
+	--color-secondary-foreground: var(--text);
+	--color-muted: var(--bg-surface);
+	--color-muted-foreground: var(--text-secondary);
+	--color-accent: var(--accent-subtle);
+	--color-accent-foreground: var(--text);
+	--color-destructive: var(--danger);
+	--color-border: var(--border);
+	--color-input: var(--border);
+	--color-ring: var(--accent);
+	--color-card: var(--bg-elevated);
+	--color-card-foreground: var(--text);
+	--color-popover: var(--bg-elevated);
+	--color-popover-foreground: var(--text);
+}
+
+/* --- Theme tokens (:root = light, .dark = dark) --- */
+
+:root {
+	color-scheme: light;
+
+	/* Surfaces */
+	--bg: oklch(0.985 0.002 250);
+	--bg-surface: oklch(0.966 0.003 250);
+	--bg-elevated: oklch(1 0 0);
+
+	/* Borders */
+	--border: oklch(0.914 0.003 250);
+	--border-subtle: oklch(0.95 0.002 250);
+
+	/* Text */
+	--text: oklch(0.145 0.005 250);
+	--text-secondary: oklch(0.45 0.003 250);
+	--text-tertiary: oklch(0.64 0.003 250);
+
+	/* Accent */
+	--accent: oklch(0.145 0.005 250);
+	--accent-hover: oklch(0 0 0);
+	--accent-subtle: oklch(0 0 0 / 0.04);
+	--accent-text: oklch(1 0 0);
+
+	/* Semantic */
+	--danger: oklch(0.577 0.245 27.33);
+	--danger-subtle: oklch(0.577 0.245 27.33 / 0.08);
+	--success: oklch(0.696 0.17 162.48);
+
+	/* Shadows */
+	--shadow-sm: 0 2px 4px oklch(0 0 0 / 0.01);
+	--shadow-md: 0 4px 24px oklch(0 0 0 / 0.02);
+	--shadow-lg: 0 20px 40px oklch(0 0 0 / 0.05);
+
+	/* Layout */
+	--nav-height: 4rem;
+	--container-max: 75rem;
+	--transition: 0.2s ease;
+}
+
+.dark {
+	color-scheme: dark;
+
+	--bg: oklch(0.095 0.005 250);
+	--bg-surface: oklch(0.145 0.005 250);
+	--bg-elevated: oklch(0.17 0.005 250);
+
+	--border: oklch(0.2 0.005 250);
+	--border-subtle: oklch(0.17 0.005 250);
+
+	--text: oklch(0.914 0.003 250);
+	--text-secondary: oklch(0.685 0.003 250);
+	--text-tertiary: oklch(0.5 0.003 250);
+
+	--accent: oklch(0.914 0.003 250);
+	--accent-hover: oklch(1 0 0);
+	--accent-subtle: oklch(1 0 0 / 0.06);
+	--accent-text: oklch(0.145 0.005 250);
+
+	--danger-subtle: oklch(0.577 0.245 27.33 / 0.12);
+
+	--shadow-sm: 0 2px 4px oklch(0 0 0 / 0.2);
+	--shadow-md: 0 4px 24px oklch(0 0 0 / 0.3);
+	--shadow-lg: 0 20px 40px oklch(0 0 0 / 0.4);
+}
+
+/* --- Base resets --- */
+
+html {
+	font-size: 16px;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+body {
+	font-family: var(--font-sans);
+	color: var(--text);
+	background: var(--bg);
+	line-height: 1.5;
+	transition: background var(--transition), color var(--transition);
+}
+
+a { color: inherit; text-decoration: none; }
+img { display: block; max-width: 100%; }
+input, button, textarea, select { font: inherit; color: inherit; }
+
+/* --- Utility classes --- */
+
+.text-dim {
+	color: var(--text-secondary);
+	font-size: 0.85rem;
+}
+
+.container-max {
+	max-width: var(--container-max);
+	margin: 0 auto;
+	padding: 0 1.5rem;
+}
+
+/* --- Sidenav layout --- */
+
+.app-shell {
+	display: flex;
+	min-height: 100vh;
+}
+
+.app-nav {
+	position: sticky;
+	top: 0;
+	z-index: 100;
+	height: 100vh;
+	flex-shrink: 0;
+	padding: 0.75rem 0 0.75rem 0.75rem;
+	width: 5rem;
+	transition: width 0.12s ease-out;
+}
+
+.app-nav.expanded {
+	width: 15.75rem;
+}
+
+.app-content {
+	flex: 1;
+	min-width: 0;
+	animation: var(--animate-page-in);
+}
+
+/* --- Mobile nav --- */
+
+@media (max-width: 768px) {
+	.app-nav {
+		position: fixed;
+		left: -100%;
+		width: 17rem;
+		transition: left 0.25s ease;
+		background: var(--bg-elevated);
+		border-right: 1px solid var(--border);
+		padding: 0.75rem;
+	}
+
+	.app-nav.mobile-open {
+		left: 0;
+	}
+
+	.app-content {
+		width: 100%;
 	}
 }
