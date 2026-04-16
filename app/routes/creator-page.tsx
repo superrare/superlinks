@@ -84,6 +84,8 @@ export default function CreatorPage({ loaderData }: Route.ComponentProps) {
 
 	const customLinks = (links ?? []) as Array<{ id: string; title: string; url: string; icon: string | null; sort_order: number }>;
 	const shopProducts = products.filter((p: any) => p.content_type !== "app" && p.content_type !== "fundraiser");
+	const isLeftLayout = theme.headerLayout === "left";
+	const isOutline = theme.btnFill === "outline";
 
 	return (
 		<div style={{ ...cssVarStyle, ...bgInline } as React.CSSProperties}>
@@ -99,11 +101,17 @@ export default function CreatorPage({ loaderData }: Route.ComponentProps) {
 					className="mb-6 rounded-[20px] border p-8 shadow-md"
 					style={{ background: "var(--lt-card, #ffffff)", borderColor: "var(--lt-border, #E5E5E5)" }}
 				>
-					{/* Header */}
-					<div className="mb-6 text-center">
+					{/* Header — left-aligned or centered */}
+					<div className={isLeftLayout ? "mb-6 flex flex-wrap items-center gap-3" : "mb-6 text-center"}>
 						<div
-							className="mx-auto mb-4 flex items-center justify-center overflow-hidden rounded-full text-2xl font-extrabold text-white"
-							style={{ ...avatarStyle, background: theme.effectiveBtnColor }}
+							className={`flex items-center justify-center overflow-hidden rounded-full font-extrabold text-white ${
+								isLeftLayout ? "shrink-0 text-xl" : "mx-auto mb-4 text-2xl"
+							}`}
+							style={{
+								...avatarStyle,
+								...(isLeftLayout ? { width: "56px", height: "56px" } : {}),
+								background: theme.effectiveBtnColor,
+							}}
 						>
 							{s.avatar_url ? (
 								<img src={s.avatar_url} alt={displayName} className="h-full w-full object-cover" />
@@ -111,26 +119,28 @@ export default function CreatorPage({ loaderData }: Route.ComponentProps) {
 								displayName.charAt(0).toUpperCase()
 							)}
 						</div>
-						<h1 className="text-2xl font-extrabold tracking-tight" style={{ color: "var(--lt-text, #111)" }}>
-							{displayName}
-						</h1>
-						<p className="mt-0.5 text-sm" style={{ color: "var(--lt-dim, #666)" }}>@{username}</p>
-						{s.bio && <p className="mx-auto mt-3 max-w-[360px] text-sm leading-relaxed" style={{ color: "var(--lt-dim, #666)" }}>{s.bio}</p>}
+						<div className={isLeftLayout ? "min-w-0 flex-1" : ""}>
+							<h1 className="text-2xl font-extrabold tracking-tight" style={{ color: "var(--lt-text, #111)" }}>
+								{displayName}
+							</h1>
+						</div>
+						<div className={isLeftLayout ? "w-full" : ""} style={isLeftLayout ? { marginTop: "-4px" } : undefined}>
+							<p className="text-sm" style={{ color: "var(--lt-dim, #666)" }}>@{username}</p>
+						</div>
+						{s.bio && (
+							<p className={`text-sm leading-relaxed ${isLeftLayout ? "w-full" : "mx-auto mt-3 max-w-[360px]"}`} style={{ color: "var(--lt-dim, #666)" }}>
+								{s.bio}
+							</p>
+						)}
 
 						{/* Social badges */}
 						{(s.website || s.twitter || s.telegram || s.farcaster) && (
-							<div className="mt-3.5 flex flex-wrap justify-center gap-2">
+							<div className={`mt-3.5 flex flex-wrap gap-2 ${isLeftLayout ? "w-full justify-start" : "justify-center"}`}>
 								{s.website && <a href={s.website} target="_blank" rel="noopener noreferrer" className="inline-block rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors hover:bg-[var(--lt-accent)] hover:text-white" style={{ borderColor: "var(--lt-accent)", color: "var(--lt-accent)" }}>Web</a>}
 								{s.twitter && <a href={`https://x.com/${s.twitter.replace("@", "")}`} target="_blank" rel="noopener noreferrer" className="inline-block rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors hover:bg-[var(--lt-accent)] hover:text-white" style={{ borderColor: "var(--lt-accent)", color: "var(--lt-accent)" }}>X</a>}
 								{s.telegram && <a href={`https://t.me/${s.telegram.replace("@", "")}`} target="_blank" rel="noopener noreferrer" className="inline-block rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors hover:bg-[var(--lt-accent)] hover:text-white" style={{ borderColor: "var(--lt-accent)", color: "var(--lt-accent)" }}>Telegram</a>}
 								{s.farcaster && <a href={`https://warpcast.com/${s.farcaster.replace("@", "")}`} target="_blank" rel="noopener noreferrer" className="inline-block rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors hover:bg-[var(--lt-accent)] hover:text-white" style={{ borderColor: "var(--lt-accent)", color: "var(--lt-accent)" }}>Farcaster</a>}
 							</div>
-						)}
-
-						{isOwner && (
-							<a href="/dashboard/links" className="mt-4 inline-block rounded-full border px-6 py-2 text-sm font-semibold transition-colors hover:bg-[var(--lt-btn-accent)] hover:text-white" style={{ borderColor: "var(--lt-border, #E5E5E5)" }}>
-								Edit profile
-							</a>
 						)}
 					</div>
 
@@ -153,6 +163,7 @@ export default function CreatorPage({ loaderData }: Route.ComponentProps) {
 											{isGif ? <img src={icon} alt="" className="h-8 w-8 rounded-md object-cover" /> : icon}
 										</span>
 										{link.title}
+										{isOutline && <span className="ml-auto shrink-0 text-lg opacity-40" aria-hidden="true">›</span>}
 									</a>
 								);
 							})}
@@ -174,8 +185,9 @@ export default function CreatorPage({ loaderData }: Route.ComponentProps) {
 											{p.content_type === "image" ? "🖼" : p.content_type === "video" ? "🎬" : p.content_type === "pdf" ? "📄" : "📦"}
 										</span>
 										{p.title}
-										<span className="ml-auto whitespace-nowrap text-xs opacity-60">
+										<span className="ml-auto flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs opacity-60">
 											{parseFloat(p.price) === 0 ? "Free" : `${p.price} USDC`}
+											{isOutline && <span className="text-lg" aria-hidden="true">›</span>}
 										</span>
 									</button>
 								))}

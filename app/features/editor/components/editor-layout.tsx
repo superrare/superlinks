@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useFetcher } from "react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Button } from "~/components/ui/button";
@@ -6,6 +6,8 @@ import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
 import { Label } from "~/components/ui/label";
 import { toast } from "sonner";
+import { DesignTab } from "./design-tab";
+import { resolveThemeVars, type PresetTheme } from "~/features/creator-page/lib/theming";
 
 interface EditorLayoutProps {
 	data: {
@@ -33,6 +35,14 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 
 	const [newLinkTitle, setNewLinkTitle] = useState("");
 	const [newLinkUrl, setNewLinkUrl] = useState("");
+
+	const [previewTheme, setPreviewTheme] = useState<PresetTheme | null>(null);
+
+	const handleThemeChange = useCallback((theme: PresetTheme) => {
+		setPreviewTheme(theme);
+	}, []);
+
+	const resolvedPreview = resolveThemeVars(previewTheme ?? storefront?.theme);
 
 	useEffect(() => {
 		if (fetcher.state === "idle" && fetcher.data) {
@@ -88,6 +98,41 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 			</div>
 		);
 	}
+
+	const isLeftLayout = resolvedPreview.headerLayout === "left";
+	const previewBg = resolvedPreview.cssVars["--lt-bg"] ?? "#ffffff";
+	const previewText = resolvedPreview.cssVars["--lt-text"] ?? "#111";
+	const previewDim = resolvedPreview.cssVars["--lt-dim"] ?? "#666";
+	const previewBorder = resolvedPreview.cssVars["--lt-border"] ?? "#e5e5e5";
+
+	const linkBorderRadius =
+		resolvedPreview.linkStyle.match(/border-radius:([^;]+)/)?.[1] ?? "12px";
+
+	const linkItemStyle = ((): React.CSSProperties => {
+		if (resolvedPreview.btnFill === "outline") {
+			return {
+				borderRadius: linkBorderRadius,
+				border: `1px solid ${resolvedPreview.effectiveBtnColor}40`,
+				background: "transparent",
+				color: resolvedPreview.btnTextColor || previewText,
+			};
+		}
+		if (resolvedPreview.btnFill === "glass") {
+			return {
+				borderRadius: linkBorderRadius,
+				border: `1px solid ${resolvedPreview.effectiveBtnColor}30`,
+				background: `${resolvedPreview.effectiveBtnColor}18`,
+				backdropFilter: "blur(8px)",
+				color: resolvedPreview.btnTextColor || previewText,
+			};
+		}
+		return {
+			borderRadius: linkBorderRadius,
+			border: `1px solid ${resolvedPreview.effectiveBtnColor}`,
+			background: resolvedPreview.effectiveBtnColor,
+			color: resolvedPreview.btnTextColor || "#ffffff",
+		};
+	})();
 
 	return (
 		<div className="grid gap-8 lg:grid-cols-[1fr_320px]">
@@ -204,37 +249,71 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 					</TabsContent>
 
 					<TabsContent value="design" className="mt-6">
-						<section className="space-y-4">
-							<h2 className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
-								Link Page Theme
-							</h2>
-							<p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
-								Customize colors, fonts, and button styles for your public page.
-							</p>
-						</section>
+						<DesignTab theme={storefront.theme} onThemeChange={handleThemeChange} />
 					</TabsContent>
 				</Tabs>
 			</div>
 
+			{/* Live preview sidebar */}
 			<aside className="hidden lg:block">
 				<div className="sticky top-8">
 					<div
 						className="overflow-hidden rounded-[2rem] border p-6 shadow-lg"
-						style={{ background: "var(--bg-elevated)", borderColor: "var(--border-subtle)", width: "280px", minHeight: "500px" }}
+						style={{
+							background: previewBg,
+							borderColor: previewBorder,
+							width: "280px",
+							minHeight: "500px",
+							fontFamily: resolvedPreview.cssVars["--lt-font"] ?? "Inter, sans-serif",
+							color: previewText,
+						}}
 					>
-						<div className="mx-auto mb-6 h-1.5 w-16 rounded-full" style={{ background: "var(--border)" }} />
-						<div className="text-center">
-							<div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--accent)] text-xl font-extrabold text-[var(--accent-text)]">
+						<div className="mx-auto mb-6 h-1.5 w-16 rounded-full" style={{ background: previewBorder }} />
+
+						{/* Header — left or center layout */}
+						<div className={isLeftLayout ? "mb-4 flex flex-wrap items-center gap-3" : "mb-6 text-center"}>
+							<div
+								className={`flex items-center justify-center overflow-hidden rounded-full font-extrabold text-white ${
+									isLeftLayout ? "h-14 w-14 shrink-0 text-lg" : "mx-auto mb-3 h-16 w-16 text-xl"
+								}`}
+								style={{
+									background: resolvedPreview.effectiveBtnColor,
+									width: isLeftLayout ? "56px" : resolvedPreview.avatarPx,
+									height: isLeftLayout ? "56px" : resolvedPreview.avatarPx,
+									boxShadow: resolvedPreview.avatarShadowColor !== resolvedPreview.accentColor
+										? `0 4px 20px ${resolvedPreview.avatarShadowColor}40`
+										: undefined,
+								}}
+							>
 								{displayName.charAt(0).toUpperCase() || "S"}
 							</div>
-							<div className="text-sm font-bold">{displayName || "Your Name"}</div>
-							<div className="text-xs" style={{ color: "var(--text-tertiary)" }}>@{handle || "handle"}</div>
-							{bio && <div className="mx-auto mt-2 max-w-[200px] text-xs" style={{ color: "var(--text-secondary)" }}>{bio}</div>}
+							<div className={isLeftLayout ? "min-w-0 flex-1" : ""}>
+								<div className="text-sm font-bold" style={{ color: previewText }}>
+									{displayName || "Your Name"}
+								</div>
+							</div>
+							<div className={isLeftLayout ? "w-full" : ""} style={{ marginTop: isLeftLayout ? "-4px" : undefined }}>
+								<div className="text-xs" style={{ color: previewDim }}>@{handle || "handle"}</div>
+							</div>
+							{bio && (
+								<div className={`text-xs ${isLeftLayout ? "w-full" : "mx-auto mt-2 max-w-[200px]"}`} style={{ color: previewDim }}>
+									{bio}
+								</div>
+							)}
 						</div>
-						<div className="mt-5 space-y-2">
+
+						{/* Preview links */}
+						<div className="space-y-2">
 							{existingLinks.slice(0, 4).map((link: any) => (
-								<div key={link.id} className="rounded-full border px-4 py-2.5 text-center text-xs font-medium" style={{ borderColor: "var(--border-subtle)" }}>
-									{link.title}
+								<div
+									key={link.id}
+									className="flex items-center px-4 py-2.5 text-xs font-medium"
+									style={linkItemStyle}
+								>
+									<span>{link.title}</span>
+									{resolvedPreview.btnFill === "outline" && (
+										<span className="ml-auto shrink-0 text-base opacity-40" aria-hidden="true">›</span>
+									)}
 								</div>
 							))}
 						</div>
