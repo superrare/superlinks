@@ -1,109 +1,118 @@
-# Welcome to React Router + Cloudflare Workers!
+# SuperLinks.me
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/templates/tree/main/react-router-starter-template)
+> All-in-one link-in-bio for creators. Built with React Router 7, Cloudflare Workers, Supabase, and Tailwind 4.
 
-![React Router Starter Template Preview](https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/bfdc2f85-e5c9-4c92-128b-3a6711249800/public)
+## Stack
 
-<!-- dash-content-start -->
+- **Framework**: React Router 7 (SSR, declarative routes)
+- **Runtime**: Cloudflare Workers
+- **Database**: Supabase (Postgres + Auth + Realtime + Edge Functions)
+- **Styling**: Tailwind CSS 4 + shadcn/ui (new-york)
+- **State**: Zustand, React Hook Form, nuqs
+- **Payments**: USDC on Base via x402
 
-A modern, production-ready template for building full-stack React applications using [React Router](https://reactrouter.com/) and the [Cloudflare Vite plugin](https://developers.cloudflare.com/workers/vite-plugin/).
+## Local Development
 
-## Features
+### Prerequisites
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
-- 🔎 Built-in Observability to monitor your Worker
-<!-- dash-content-end -->
+- Node.js ≥ 20
+- [pnpm](https://pnpm.io/) (`corepack enable`)
+- [Supabase CLI](https://supabase.com/docs/guides/cli)
+- [Wrangler](https://developers.cloudflare.com/workers/wrangler/) (installed as devDep)
 
-## Getting Started
-
-Outside of this repo, you can start a new project with this template using [C3](https://developers.cloudflare.com/pages/get-started/c3/) (the `create-cloudflare` CLI):
+### Setup
 
 ```bash
-npm create cloudflare@latest -- --template=cloudflare/templates/react-router-starter-template
+# Install dependencies
+pnpm install
+
+# Copy local secrets template
+cp .dev.vars.example .dev.vars
+# Edit .dev.vars with your Supabase project URL and anon key
+
+# Update wrangler.jsonc vars with your Supabase public values
+# SUPABASE_URL and SUPABASE_ANON_KEY
+
+# Generate Cloudflare types
+pnpm cf-typegen
+
+# Start dev server
+pnpm dev
 ```
 
-A live public deployment of this template is available at [https://react-router-starter-template.templates.workers.dev](https://react-router-starter-template.templates.workers.dev)
+### Supabase
 
-### Installation
-
-Install the dependencies:
+Migrations live in `supabase/migrations/`. Push them with:
 
 ```bash
-npm install
+supabase db push
 ```
 
-### Development
-
-Start the development server with HMR:
+Generate TypeScript types:
 
 ```bash
-npm run dev
+SUPABASE_PROJECT_ID=your-project-id pnpm db:types
 ```
 
-Your application will be available at `http://localhost:5173`.
+### Scripts
 
-## Typegen
+| Script | Description |
+|---|---|
+| `pnpm dev` | Start dev server |
+| `pnpm build` | Production build |
+| `pnpm deploy` | Build + deploy to Cloudflare |
+| `pnpm cf-typegen` | Generate Cloudflare + RR types |
+| `pnpm db:types` | Generate Supabase types |
+| `pnpm typecheck` | Type check |
+| `pnpm check` | Type check + build + deploy dry run |
+| `pnpm knip` | Find unused exports/deps |
 
-Generate types for your Cloudflare bindings in `wrangler.json`:
+## Project Structure
 
-```sh
-npm run typegen
+```
+app/
+├── routes/              # Thin route modules (loader/action/component)
+├── features/            # Feature-first organization
+│   ├── auth/            # Login, signup, callback, session helpers
+│   ├── editor/          # Link page editor (My Links)
+│   ├── store/           # Product CRUD, posts
+│   ├── wallet/          # Earn, balance, transactions
+│   ├── insights/        # Analytics
+│   ├── messages/        # Chat with Supabase Realtime
+│   ├── admin/           # Admin panel
+│   ├── creator-page/    # Public /:handle page
+│   ├── discover/        # Browse creators
+│   └── app-viewer/      # Hosted app iframe
+├── components/
+│   ├── ui/              # shadcn/ui primitives
+│   └── shared/          # Cross-feature components
+├── lib/                 # Shared infra (env, supabase, commerce, cache)
+├── stores/              # Zustand stores
+└── types/               # Generated types
+
+workers/
+└── app.ts               # Cloudflare Workers entry point
+
+supabase/
+└── migrations/          # SQL migrations (source of truth)
 ```
 
-## Building for Production
+## Routes
 
-Create a production build:
-
-```bash
-npm run build
-```
-
-## Previewing the Production Build
-
-Preview the production build locally:
-
-```bash
-npm run preview
-```
-
-## Deployment
-
-If you don't have a Cloudflare account, [create one here](https://dash.cloudflare.com/sign-up)! Go to your [Workers dashboard](https://dash.cloudflare.com/?to=%2F%3Aaccount%2Fworkers-and-pages) to see your [free custom Cloudflare Workers subdomain](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/) on `*.workers.dev`.
-
-Once that's done, you can build your app:
-
-```sh
-npm run build
-```
-
-And deploy it:
-
-```sh
-npm run deploy
-```
-
-To deploy a preview URL:
-
-```sh
-npx wrangler versions upload
-```
-
-You can then promote a version to production after verification or roll it out progressively.
-
-```sh
-npx wrangler versions deploy
-```
-
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
-
----
-
-Built with ❤️ using React Router.
+| Path | Description |
+|---|---|
+| `/` | Marketing landing page |
+| `/login` | Google OAuth login |
+| `/signup` | Claim username + sign up |
+| `/auth/callback` | OAuth callback (provisions wallet + storefront) |
+| `/docs` | CLI documentation |
+| `/discover` | Browse creators |
+| `/app/:id` | Hosted app viewer |
+| `/dashboard/links` | Editor: profile, links, theme |
+| `/dashboard/products` | Product + post management |
+| `/dashboard/insights` | Analytics |
+| `/dashboard/earn` | Wallet + transactions |
+| `/dashboard/messages` | Conversations |
+| `/dashboard/admin` | Admin panel |
+| `/dashboard/settings` | Account + theme toggle |
+| `/:handle` | Public creator page (catch-all, must be last) |

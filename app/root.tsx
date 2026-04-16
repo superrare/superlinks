@@ -8,7 +8,13 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
+import { getEnv, type PublicEnv } from "./lib/env.server";
+import { Toaster } from "./components/ui/sonner";
 import "./app.css";
+
+export const loader = ({ context }: Route.LoaderArgs) => {
+	return { ENV: getEnv(context) };
+};
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -21,16 +27,31 @@ export const links: Route.LinksFunction = () => [
 		rel: "stylesheet",
 		href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
 	},
+	{
+		rel: "stylesheet",
+		href: "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap",
+	},
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="en">
+		<html lang="en" suppressHydrationWarning>
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
+				<link rel="icon" type="image/png" href="/favicon.png" />
 				<Meta />
 				<Links />
+				<script
+					dangerouslySetInnerHTML={{
+						__html: `
+							(function() {
+								var theme = localStorage.getItem('superlinks-theme');
+								if (theme === 'dark') document.documentElement.classList.add('dark');
+							})();
+						`,
+					}}
+				/>
 			</head>
 			<body>
 				{children}
@@ -41,8 +62,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
 	);
 }
 
-export default function App() {
-	return <Outlet />;
+export default function App({ loaderData }: Route.ComponentProps) {
+	return (
+		<>
+			<Outlet />
+			<Toaster />
+			<script
+				dangerouslySetInnerHTML={{
+					__html: `window.ENV = ${JSON.stringify(loaderData.ENV)};`,
+				}}
+			/>
+		</>
+	);
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
@@ -62,14 +93,20 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 	}
 
 	return (
-		<main className="pt-16 p-4 container mx-auto">
-			<h1>{message}</h1>
-			<p>{details}</p>
-			{stack && (
-				<pre className="w-full p-4 overflow-x-auto">
-					<code>{stack}</code>
-				</pre>
-			)}
+		<main className="flex min-h-screen items-center justify-center p-4">
+			<div className="text-center">
+				<h1 className="text-4xl font-bold" style={{ color: "var(--text)" }}>
+					{message}
+				</h1>
+				<p className="mt-2" style={{ color: "var(--text-secondary)" }}>
+					{details}
+				</p>
+				{stack && (
+					<pre className="mt-4 w-full max-w-2xl overflow-x-auto rounded-lg p-4 text-left text-sm" style={{ background: "var(--bg-surface)" }}>
+						<code>{stack}</code>
+					</pre>
+				)}
+			</div>
 		</main>
 	);
 }

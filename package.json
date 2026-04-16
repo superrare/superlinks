@@ -1,46 +1,54 @@
 {
 	"name": "superlinks",
-	"description": "Build a full-stack web application with React Router 7.",
-	"cloudflare": {
-		"label": "React Router Framework Starter",
-		"products": [
-			"Workers"
-		],
-		"categories": [
-			"storage"
-		],
-		"preview_icon_url": "https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/36a99c4a-8919-4e6e-ac9e-e55974407200/public",
-		"preview_image_url": "https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/65455e96-7992-425f-44e4-30f3e7d7f900/preview",
-		"publish": true
+	"description": "SuperLinks.me — creator link-in-bio platform",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "react-router dev",
+		"build": "NODE_OPTIONS=--max-old-space-size=4096 react-router build",
+		"deploy": "pnpm build && wrangler deploy",
+		"cf-typegen": "wrangler types && react-router typegen",
+		"db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > app/types/database.types.ts",
+		"check": "tsc && react-router build && wrangler deploy --dry-run",
+		"typecheck": "react-router typegen && tsc -b",
+		"knip": "knip",
+		"preview": "pnpm build && vite preview"
 	},
 	"dependencies": {
+		"@supabase/ssr": "^0.6.1",
+		"@supabase/supabase-js": "^2.49.4",
+		"@tanstack/react-query": "^5.99.0",
+		"class-variance-authority": "^0.7.1",
+		"clsx": "^2.1.1",
+		"date-fns": "^4.1.0",
+		"framer-motion": "^12.38.0",
 		"isbot": "5.1.32",
+		"lucide-react": "^1.8.0",
+		"nuqs": "^2.8.9",
+		"radix-ui": "^1.4.3",
 		"react": "^19.0.0",
 		"react-dom": "^19.0.0",
-		"react-router": "7.9.6"
+		"react-hook-form": "^7.72.1",
+		"react-router": "7.9.6",
+		"sonner": "^2.0.7",
+		"tailwind-merge": "^3.5.0",
+		"zod": "^4.3.6",
+		"zustand": "^5.0.12"
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "1.15.3",
+		"@cloudflare/workers-types": "^4.20250410.0",
 		"@react-router/dev": "7.9.6",
 		"@tailwindcss/vite": "4.1.17",
 		"@types/node": "24.10.1",
 		"@types/react": "^19.0.0",
 		"@types/react-dom": "^19.0.0",
+		"knip": "^5.56.2",
 		"tailwindcss": "4.1.17",
 		"typescript": "5.9.3",
 		"vite": "^6.0.0",
 		"vite-tsconfig-paths": "5.1.4",
 		"wrangler": "4.56.0"
 	},
-	"private": true,
-	"scripts": {
-		"build": "react-router build",
-		"cf-typegen": "wrangler types && react-router typegen",
-		"check": "tsc && react-router build && wrangler deploy --dry-run",
-		"deploy": "wrangler deploy",
-		"dev": "react-router dev",
-		"preview": "npm run build && vite preview",
-		"typecheck": "npm run typegen && tsc -b"
-	},
-	"type": "module"
+	"packageManager": "pnpm@10.30.3+sha512.c961d1e0a2d8e354ecaa5166b822516668b7f44cb5bd95122d590dd81922f606f5473b6d23ec4a5be05e7fcd18e8488d47d978bbe981872f1145d06e9a740017"
 }
