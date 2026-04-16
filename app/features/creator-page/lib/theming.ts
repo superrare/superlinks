@@ -1,7 +1,20 @@
 const DEFAULT_ACCENT = "#111111";
 
+const FONT_URLS: Record<string, string> = {
+	"JetBrains Mono": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap",
+	"Instrument Serif": "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap",
+	Switzer: "https://api.fontshare.com/v2/css?f[]=switzer@400;500;600;700&display=swap",
+};
+
+export const getFontStylesheetUrl = (family: string): string | null => {
+	if (FONT_URLS[family]) return FONT_URLS[family];
+	const encoded = encodeURIComponent(family);
+	return `https://fonts.googleapis.com/css2?family=${encoded}:wght@400;500;600;700&display=swap`;
+};
+
 const SAFE_COLOR_RE = /^#[0-9a-fA-F]{3,8}$|^(?:rgb|hsl|oklch)a?\([^)]{1,80}\)$|^[a-zA-Z]{1,20}$/;
 const SAFE_FONT_RE = /^[a-zA-Z0-9 ,'-]{1,100}$/;
+const VALID_HEADER_LAYOUTS = new Set(["left", "center"]);
 
 const sanitizeColor = (val: string | undefined, fallback: string): string =>
 	val && SAFE_COLOR_RE.test(val) ? val : fallback;
@@ -9,7 +22,7 @@ const sanitizeColor = (val: string | undefined, fallback: string): string =>
 const sanitizeFont = (val: string | undefined): string | undefined =>
 	val && SAFE_FONT_RE.test(val) ? val : undefined;
 
-interface ThemeConfig {
+export interface ThemeConfig {
 	accentColor?: string;
 	socialLinksColor?: string;
 	bgStyle?: string;
@@ -25,7 +38,90 @@ interface ThemeConfig {
 	wallpaperStyle?: string;
 	wallpaper?: boolean;
 	btnStyle?: string;
+	headerLayout?: string;
 }
+
+export interface PresetTheme {
+	socialLinksColor: string;
+	bgStyle: string;
+	bgColor: string;
+	fontFamily: string;
+	fontColor: string;
+	btnFill: string;
+	btnRadius: string;
+	btnColor: string;
+	btnTextColor: string;
+	wallpaperStyle: string;
+	avatarSize: string;
+	avatarShadowColor: string;
+	headerLayout: string;
+}
+
+export const THEME_PRESETS: Record<string, PresetTheme | null> = {
+	custom: null,
+	ghost: {
+		socialLinksColor: "#111111",
+		bgStyle: "solid",
+		bgColor: "#ffffff",
+		fontFamily: "Switzer",
+		fontColor: "#111111",
+		btnFill: "outline",
+		btnRadius: "square",
+		btnColor: "#111111",
+		btnTextColor: "#111111",
+		wallpaperStyle: "none",
+		avatarSize: "medium",
+		avatarShadowColor: "",
+		headerLayout: "center",
+	},
+	ink: {
+		socialLinksColor: "#dddddd",
+		bgStyle: "dark",
+		bgColor: "#0a0a0a",
+		fontFamily: "JetBrains Mono",
+		fontColor: "#dddddd",
+		btnFill: "outline",
+		btnRadius: "square",
+		btnColor: "#1c1c1c",
+		btnTextColor: "#dddddd",
+		wallpaperStyle: "none",
+		avatarSize: "medium",
+		avatarShadowColor: "",
+		headerLayout: "left",
+	},
+	paper: {
+		socialLinksColor: "#1a1a18",
+		bgStyle: "solid",
+		bgColor: "#faf7f2",
+		fontFamily: "Instrument Serif",
+		fontColor: "#1a1a18",
+		btnFill: "outline",
+		btnRadius: "round",
+		btnColor: "#1a1a18",
+		btnTextColor: "#1a1a18",
+		wallpaperStyle: "none",
+		avatarSize: "medium",
+		avatarShadowColor: "",
+		headerLayout: "left",
+	},
+};
+
+export const PRESET_NAMES = ["custom", "ghost", "ink", "paper"] as const;
+export type PresetName = (typeof PRESET_NAMES)[number];
+
+export const detectActivePreset = (current: PresetTheme): PresetName => {
+	for (const name of PRESET_NAMES) {
+		if (name === "custom") continue;
+		const preset = THEME_PRESETS[name];
+		if (!preset) continue;
+
+		const match = (Object.keys(preset) as Array<keyof PresetTheme>).every(
+			(key) => current[key] === preset[key],
+		);
+		if (match) return name;
+	}
+	return "custom";
+};
 
 export const resolveThemeVars = (theme: ThemeConfig | null | undefined) => {
 	const t = theme && typeof theme === "object" ? theme : {};
@@ -40,6 +136,7 @@ export const resolveThemeVars = (theme: ThemeConfig | null | undefined) => {
 	const avatarSize = t.avatarSize ?? "medium";
 	const avatarShadowColor = sanitizeColor(t.avatarShadowColor, "");
 	const wallpaperStyle = t.wallpaperStyle ?? (t.wallpaper === false ? "none" : "waves");
+	const headerLayout = VALID_HEADER_LAYOUTS.has(t.headerLayout ?? "") ? t.headerLayout! : "center";
 
 	const legacyBtnStyle = t.btnStyle ?? "rounded";
 	const btnFill = t.btnFill ?? (legacyBtnStyle === "outline" ? "outline" : "solid");
@@ -61,7 +158,7 @@ export const resolveThemeVars = (theme: ThemeConfig | null | undefined) => {
 
 	let linkStyle = `border-radius:${linkBorderRadius};`;
 	if (btnFill === "outline") {
-		linkStyle += `border:2px solid ${effectiveBtnColor};background:transparent;color:${btnTextColor || "inherit"}`;
+		linkStyle += `border:1px solid ${effectiveBtnColor}40;background:transparent;color:${btnTextColor || "inherit"}`;
 	} else if (btnFill === "glass") {
 		linkStyle += `border:1px solid ${effectiveBtnColor}30;background:${effectiveBtnColor}18;backdrop-filter:blur(8px);color:${btnTextColor || "inherit"}`;
 	} else {
@@ -95,10 +192,17 @@ export const resolveThemeVars = (theme: ThemeConfig | null | undefined) => {
 		bgColor,
 		effectiveBtnColor,
 		fontFamily,
+		fontColor,
 		avatarPx,
+		avatarSize,
 		avatarShadowColor: avatarShadowColor || accentColor,
 		linkStyle,
 		wallpaperStyle,
+		headerLayout,
+		btnFill,
+		btnRadius,
+		btnTextColor,
+		socialLinksColor,
 		cssVars,
 	};
 };
