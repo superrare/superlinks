@@ -1,5 +1,4 @@
 import type { Route } from "./+types/creator-page";
-import type { LinkDescriptor } from "react-router";
 import { getEnv } from "~/lib/env.server";
 import { fetchStore } from "~/lib/commerce.server";
 import { resolveThemeVars, getFontStylesheetUrl } from "~/features/creator-page/lib/theming";
@@ -11,7 +10,7 @@ const CheckoutModal = lazy(() => import("~/features/creator-page/components/chec
 const QRModal = lazy(() => import("~/features/creator-page/components/qr-modal.client"));
 const ShareModal = lazy(() => import("~/features/creator-page/components/share-modal.client"));
 
-export const meta: Route.MetaFunction = ({ data }: { data?: Record<string, any> }) => {
+export const meta: Route.MetaFunction = ({ data }: { data?: Record<string, any> } = {}) => {
 	if (!data?.storefront) return [{ title: "SuperLinks.me" }];
 	const s = data.storefront;
 	const displayName = s.profiles?.display_name ?? s.name ?? s.slug;
@@ -25,7 +24,7 @@ export const meta: Route.MetaFunction = ({ data }: { data?: Record<string, any> 
 	];
 };
 
-export const links = ({ data }: { data?: Record<string, any> } = {}): LinkDescriptor[] => {
+export const links: Route.LinksFunction = ({ data } = {}) => {
 	const font = data?.storefront?.theme?.fontFamily as string | undefined;
 	if (!font || font === "Inter") return [];
 	const href = getFontStylesheetUrl(font);

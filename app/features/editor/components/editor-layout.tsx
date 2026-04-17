@@ -141,7 +141,7 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 					<div>
 						<h1 className="text-2xl font-bold tracking-tight">My Links</h1>
 						<p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-							superlinks.me/{storefront.slug}
+							superlinks.me/{profile?.username ?? storefront.slug}
 						</p>
 					</div>
 					<div className="flex gap-2">
