@@ -2,6 +2,7 @@ import type { Route } from "./+types/dashboard-products";
 import { requireAuth, withHeaders } from "~/features/auth/server/auth.server";
 import { getEnv } from "~/lib/env.server";
 import { callCommerce } from "~/lib/commerce.server";
+import { commerceFetch } from "~/lib/commerce";
 import { Separator } from "~/components/ui/separator";
 import { useState, useEffect } from "react";
 
@@ -71,22 +72,21 @@ function ProductSkeleton() {
 }
 
 export default function DashboardProductsRoute({ loaderData }: Route.ComponentProps) {
-	const { token, ENV } = loaderData;
 	const [products, setProducts] = useState<Product[] | null>(null);
+	const [loadError, setLoadError] = useState(false);
 
 	useEffect(() => {
-		fetch(`${ENV.SUPABASE_URL}/functions/v1/commerce`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${ENV.SUPABASE_ANON_KEY}`,
-				"x-user-token": token,
-			},
-			body: JSON.stringify({ action: "my-products" }),
-		})
-			.then((r) => r.json())
-			.then((d) => setProducts(d.products ?? []));
-	}, [token, ENV.SUPABASE_URL, ENV.SUPABASE_ANON_KEY]);
+		const { token, ENV } = loaderData;
+		let cancelled = false;
+		setLoadError(false);
+
+		commerceFetch<{ products?: Product[] }>(ENV, token, "my-products")
+			.then((d) => { if (!cancelled) setProducts(d.products ?? []); })
+			.catch(() => { if (!cancelled) setLoadError(true); });
+
+		return () => { cancelled = true; };
+		// loaderData is a new reference after every navigation and post-action revalidation.
+	}, [loaderData]);
 
 	return (
 		<div className="max-w-2xl">
@@ -97,7 +97,14 @@ export default function DashboardProductsRoute({ loaderData }: Route.ComponentPr
 
 			<Separator className="my-6" />
 
-			{products === null ? (
+			{loadError ? (
+				<p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+					Failed to load.{" "}
+					<button className="underline" onClick={() => window.location.reload()}>
+						Refresh
+					</button>
+				</p>
+			) : products === null ? (
 				<ProductSkeleton />
 			) : products.length === 0 ? (
 				<div
