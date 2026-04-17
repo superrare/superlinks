@@ -27,11 +27,11 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 
 	const [handle, setHandle] = useState(profile?.username ?? storefront?.slug ?? "");
 	const [displayName, setDisplayName] = useState(profile?.display_name ?? storefront?.name ?? "");
-	const [bio, setBio] = useState(storefront?.bio ?? "");
-	const [website, setWebsite] = useState(storefront?.website ?? "");
-	const [twitter, setTwitter] = useState(storefront?.twitter ?? "");
-	const [telegram, setTelegram] = useState(storefront?.telegram ?? "");
-	const [farcaster, setFarcaster] = useState(storefront?.farcaster ?? "");
+	const [bio, setBio] = useState(profile?.bio ?? storefront?.bio ?? "");
+	const [website, setWebsite] = useState(profile?.website ?? storefront?.website ?? "");
+	const [twitter, setTwitter] = useState(profile?.twitter ?? storefront?.twitter ?? "");
+	const [telegram, setTelegram] = useState(profile?.telegram ?? storefront?.telegram ?? "");
+	const [farcaster, setFarcaster] = useState(profile?.farcaster ?? storefront?.farcaster ?? "");
 
 	const [newLinkTitle, setNewLinkTitle] = useState("");
 	const [newLinkUrl, setNewLinkUrl] = useState("");
@@ -42,7 +42,7 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 		setPreviewTheme(theme);
 	}, []);
 
-	const resolvedPreview = resolveThemeVars(previewTheme ?? storefront?.theme);
+	const resolvedPreview = resolveThemeVars(previewTheme ?? profile?.theme ?? storefront?.theme);
 
 	useEffect(() => {
 		if (fetcher.state === "idle" && fetcher.data) {
@@ -249,7 +249,7 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 					</TabsContent>
 
 					<TabsContent value="design" className="mt-6">
-						<DesignTab theme={storefront.theme} onThemeChange={handleThemeChange} />
+						<DesignTab theme={profile?.theme ?? storefront?.theme} onThemeChange={handleThemeChange} />
 					</TabsContent>
 				</Tabs>
 			</div>
