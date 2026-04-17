@@ -4,6 +4,13 @@ import { getEnv } from "~/lib/env.server";
 import { callCommerce } from "~/lib/commerce.server";
 import { Separator } from "~/components/ui/separator";
 
+interface Product {
+	id: string;
+	title: string;
+	price: string;
+	content_type: string;
+}
+
 export const meta: Route.MetaFunction = () => [
 	{ title: "Products — SuperLinks.me" },
 ];
@@ -13,12 +20,14 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnv(context);
 	const token = session?.access_token ?? "";
 
-	const [storefronts, products] = await Promise.all([
-		callCommerce({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "my-storefronts" }),
-		callCommerce({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "my-products" }),
-	]);
+	const { products } = await callCommerce<{ products: Product[] }>({
+		supabaseUrl: SUPABASE_URL,
+		anonKey: SUPABASE_ANON_KEY,
+		accessToken: token,
+		action: "my-products",
+	});
 
-	return withHeaders({ storefronts, products, ENV: getEnv(context) }, headers);
+	return withHeaders({ products: products ?? [], ENV: getEnv(context) }, headers);
 };
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
@@ -57,12 +66,7 @@ const CONTENT_TYPE_EMOJI: Record<string, string> = {
 };
 
 export default function DashboardProductsRoute({ loaderData }: Route.ComponentProps) {
-	const products = ((loaderData as any)?.products?.products ?? []) as Array<{
-		id: string;
-		title: string;
-		price: string;
-		content_type: string;
-	}>;
+	const { products } = loaderData;
 
 	return (
 		<div className="max-w-2xl">

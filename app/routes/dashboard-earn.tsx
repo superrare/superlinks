@@ -6,6 +6,40 @@ import { callCommerce } from "~/lib/commerce.server";
 import { callWallet } from "~/lib/wallet.server";
 import { Separator } from "~/components/ui/separator";
 import { Button } from "~/components/ui/button";
+import { timeAgo, shortAddr } from "~/lib/utils";
+
+interface WalletBalance {
+	usdc?: number;
+	balance?: number;
+	address?: string;
+}
+
+interface WalletTransaction {
+	id?: string;
+	hash?: string;
+	type?: string;
+	amount: number | string;
+	asset?: string;
+	created_at?: string;
+}
+
+interface Event {
+	id: string;
+	type?: string;
+	message?: string;
+	body?: string;
+	created_at?: string;
+	read?: boolean;
+}
+
+interface Purchase {
+	id: string;
+	title?: string;
+	product_title?: string;
+	product_id?: string;
+	price?: string;
+	created_at?: string;
+}
 
 export const meta: Route.MetaFunction = () => [
 	{ title: "Earn — SuperLinks.me" },
@@ -16,15 +50,19 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnv(context);
 	const token = session?.access_token ?? "";
 
-	const [balance, transactions, events, purchases, storefronts] = await Promise.all([
-		callWallet({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "balance" }).catch((e) => { console.warn("Wallet balance error:", e); return null; }),
-		callWallet({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "transactions" }).catch((e) => { console.warn("Wallet transactions error:", e); return null; }),
-		callCommerce({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "events" }),
-		callCommerce({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "my-purchases" }),
-		callCommerce({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "my-storefronts" }),
+	const [balance, txResult, eventsResult, purchasesResult] = await Promise.all([
+		callWallet<WalletBalance>({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "balance" }).catch((e) => { console.warn("Wallet balance error:", e); return null; }),
+		callWallet<{ transactions: WalletTransaction[] }>({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "transactions" }).catch((e) => { console.warn("Wallet transactions error:", e); return null; }),
+		callCommerce<{ events: Event[] }>({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "events" }),
+		callCommerce<{ purchases: Purchase[] }>({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "my-purchases" }),
 	]);
 
-	return withHeaders({ balance, transactions, events, purchases, storefronts, ENV: getEnv(context) }, headers);
+	return withHeaders({
+		balance,
+		transactions: txResult?.transactions ?? [],
+		events: eventsResult.events ?? [],
+		purchases: purchasesResult.purchases ?? [],
+	}, headers);
 };
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
@@ -61,24 +99,18 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	return withHeaders({ ok: false, error: "Unknown intent" }, headers);
 };
 
-function timeAgo(dateStr: string) {
-	const diff = Date.now() - new Date(dateStr).getTime();
-	const mins = Math.floor(diff / 60000);
-	if (mins < 1) return "just now";
-	if (mins < 60) return `${mins}m ago`;
-	const hrs = Math.floor(mins / 60);
-	if (hrs < 24) return `${hrs}h ago`;
-	return `${Math.floor(hrs / 24)}d ago`;
-}
-
 export default function DashboardEarnRoute({ loaderData }: Route.ComponentProps) {
 	const fetcher = useFetcher();
-	const data = loaderData as any;
-	const balance = data?.balance as Record<string, unknown> | null;
-	const transactions = ((data?.transactions?.transactions ?? data?.transactions ?? []) as any[]);
-	const events = ((data?.events?.events ?? data?.events ?? []) as any[]);
-	const purchases = ((data?.purchases?.purchases ?? data?.purchases ?? []) as any[]);
-	const unreadCount = events.filter((e: any) => !e.read).length;
+	const { balance, transactions, events, purchases } = loaderData;
+
+	const isMarkingRead = fetcher.state !== "idle";
+	const unreadCount = isMarkingRead ? 0 : events.filter((e) => !e.read).length;
+
+	const balanceAmount = typeof balance?.usdc === "number"
+		? balance.usdc
+		: typeof balance?.balance === "number"
+			? balance.balance
+			: null;
 
 	return (
 		<div className="max-w-2xl">
@@ -95,12 +127,12 @@ export default function DashboardEarnRoute({ loaderData }: Route.ComponentProps)
 				{balance ? (
 					<div className="rounded-xl border p-5" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
 						<div className="text-3xl font-bold tabular-nums">
-							{(balance.usdc ?? balance.balance ?? "0.00") as string}
+							{balanceAmount !== null ? balanceAmount.toFixed(2) : "—"}
 							<span className="ml-2 text-sm font-medium" style={{ color: "var(--text-secondary)" }}>USDC</span>
 						</div>
 						{balance.address && (
-							<p className="mt-1 truncate font-mono text-xs" style={{ color: "var(--text-secondary)" }}>
-								{balance.address as string}
+							<p className="mt-1 font-mono text-xs" style={{ color: "var(--text-secondary)" }}>
+								{shortAddr(balance.address)}
 							</p>
 						)}
 					</div>
@@ -113,7 +145,7 @@ export default function DashboardEarnRoute({ loaderData }: Route.ComponentProps)
 			<section className="mb-8">
 				<div className="mb-3 flex items-center justify-between">
 					<h2 className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
-						Notifications {unreadCount > 0 && <span className="ml-1.5 rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] text-white">{unreadCount}</span>}
+						Notifications{unreadCount > 0 && <span className="ml-1.5 rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] text-white">{unreadCount}</span>}
 					</h2>
 					{unreadCount > 0 && (
 						<fetcher.Form method="post">
@@ -128,11 +160,11 @@ export default function DashboardEarnRoute({ loaderData }: Route.ComponentProps)
 					<p className="text-sm" style={{ color: "var(--text-secondary)" }}>No notifications yet.</p>
 				) : (
 					<div className="flex flex-col gap-2">
-						{events.map((e: any) => (
+						{events.map((e) => (
 							<div
 								key={e.id}
 								className="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm"
-								style={{ borderColor: "var(--border)", background: e.read ? "var(--card)" : "var(--card-highlight, var(--card))", opacity: e.read ? 0.7 : 1 }}
+								style={{ borderColor: "var(--border)", background: "var(--card)", opacity: e.read ? 0.7 : 1 }}
 							>
 								<span className="mt-0.5 shrink-0 text-base">{e.type === "purchase" ? "💰" : e.type === "follow" ? "👤" : "🔔"}</span>
 								<span className="flex-1">{e.message ?? e.body ?? e.type}</span>
@@ -152,9 +184,9 @@ export default function DashboardEarnRoute({ loaderData }: Route.ComponentProps)
 					<p className="text-sm" style={{ color: "var(--text-secondary)" }}>No transactions yet.</p>
 				) : (
 					<div className="flex flex-col gap-2">
-						{transactions.map((tx: any) => (
+						{transactions.map((tx, i) => (
 							<div
-								key={tx.id ?? tx.hash}
+								key={tx.id ?? tx.hash ?? i}
 								className="flex items-center gap-3 rounded-xl border px-4 py-3 text-sm"
 								style={{ borderColor: "var(--border)", background: "var(--card)" }}
 							>
@@ -179,7 +211,7 @@ export default function DashboardEarnRoute({ loaderData }: Route.ComponentProps)
 					<p className="text-sm" style={{ color: "var(--text-secondary)" }}>No purchases yet.</p>
 				) : (
 					<div className="flex flex-col gap-2">
-						{purchases.map((p: any) => (
+						{purchases.map((p) => (
 							<div
 								key={p.id}
 								className="flex items-center gap-3 rounded-xl border px-4 py-3 text-sm"
@@ -187,9 +219,11 @@ export default function DashboardEarnRoute({ loaderData }: Route.ComponentProps)
 							>
 								<span className="text-base">📦</span>
 								<span className="flex-1 font-medium truncate">{p.title ?? p.product_title ?? p.product_id}</span>
-								<span className="shrink-0 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-									{p.price ? `${p.price} USDC` : ""}
-								</span>
+								{p.price && (
+									<span className="shrink-0 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+										{p.price} USDC
+									</span>
+								)}
 								{p.created_at && (
 									<span className="shrink-0 text-xs" style={{ color: "var(--text-secondary)" }}>{timeAgo(p.created_at)}</span>
 								)}
