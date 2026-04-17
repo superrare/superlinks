@@ -3,6 +3,8 @@ import type { Route } from "./+types/dashboard-layout";
 import { requireAuth, withHeaders } from "~/features/auth/server/auth.server";
 import { SidebarNav } from "~/components/shared/sidebar-nav";
 
+export const shouldRevalidate: Route.ShouldRevalidateFunction = () => false;
+
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const { user, headers } = await requireAuth(request, context);
 	return withHeaders(

@@ -3,15 +3,13 @@ import { createSupabaseServerClient } from "~/lib/supabase.server";
 
 export const requireAuth = async (request: Request, context: AppLoadContext) => {
 	const { supabase, headers } = createSupabaseServerClient(request, context);
-	const { data: { user }, error } = await supabase.auth.getUser();
+	const { data: { session } } = await supabase.auth.getSession();
 
-	if (error || !user) {
+	if (!session?.user) {
 		throw redirect("/login", { headers });
 	}
 
-	const { data: { session } } = await supabase.auth.getSession();
-
-	return { user, session, supabase, headers };
+	return { user: session.user, session, supabase, headers };
 };
 
 export const getOptionalSession = async (

@@ -4,6 +4,7 @@ import { getEnv } from "~/lib/env.server";
 import { callCommerce } from "~/lib/commerce.server";
 import { invalidateCache } from "~/lib/cache.server";
 import { EditorLayout } from "~/features/editor/components/editor-layout";
+import { useState, useEffect } from "react";
 
 export const meta: Route.MetaFunction = () => [
 	{ title: "My Links — SuperLinks.me" },
@@ -11,16 +12,7 @@ export const meta: Route.MetaFunction = () => [
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const { session, headers } = await requireAuth(request, context);
-	const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnv(context);
-	const token = session?.access_token ?? "";
-
-	const [storefronts, profile, links] = await Promise.all([
-		callCommerce({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "my-storefronts" }),
-		callCommerce({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "get-profile" }),
-		callCommerce({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "get-links" }),
-	]);
-
-	return withHeaders({ storefronts, profile, links, ENV: getEnv(context) }, headers);
+	return withHeaders({ token: session?.access_token ?? "", ENV: getEnv(context) }, headers);
 };
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
@@ -72,6 +64,51 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	return withHeaders({ ok: true, result }, headers);
 };
 
+function EditorSkeleton() {
+	return (
+		<div className="max-w-2xl space-y-6 animate-pulse">
+			<div className="h-8 w-48 rounded-lg" style={{ background: "var(--muted)" }} />
+			<div className="h-24 rounded-xl" style={{ background: "var(--muted)" }} />
+			<div className="space-y-3">
+				{[1, 2, 3].map((i) => (
+					<div key={i} className="h-14 rounded-xl" style={{ background: "var(--muted)" }} />
+				))}
+			</div>
+		</div>
+	);
+}
+
 export default function DashboardLinksRoute({ loaderData }: Route.ComponentProps) {
-	return <EditorLayout data={loaderData} />;
+	const { token, ENV } = loaderData;
+	const [editorData, setEditorData] = useState<{
+		storefronts: unknown;
+		profile: unknown;
+		links: unknown;
+	} | null>(null);
+
+	useEffect(() => {
+		Promise.all([
+			fetch(`${ENV.SUPABASE_URL}/functions/v1/commerce`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json", Authorization: `Bearer ${ENV.SUPABASE_ANON_KEY}`, "x-user-token": token },
+				body: JSON.stringify({ action: "my-storefronts" }),
+			}).then((r) => r.json()),
+			fetch(`${ENV.SUPABASE_URL}/functions/v1/commerce`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json", Authorization: `Bearer ${ENV.SUPABASE_ANON_KEY}`, "x-user-token": token },
+				body: JSON.stringify({ action: "get-profile" }),
+			}).then((r) => r.json()),
+			fetch(`${ENV.SUPABASE_URL}/functions/v1/commerce`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json", Authorization: `Bearer ${ENV.SUPABASE_ANON_KEY}`, "x-user-token": token },
+				body: JSON.stringify({ action: "get-links" }),
+			}).then((r) => r.json()),
+		]).then(([storefronts, profile, links]) => {
+			setEditorData({ storefronts, profile, links });
+		});
+	}, [token, ENV.SUPABASE_URL, ENV.SUPABASE_ANON_KEY]);
+
+	if (!editorData) return <EditorSkeleton />;
+
+	return <EditorLayout data={{ ...editorData, ENV }} />;
 }

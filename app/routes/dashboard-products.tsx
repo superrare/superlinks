@@ -3,6 +3,7 @@ import { requireAuth, withHeaders } from "~/features/auth/server/auth.server";
 import { getEnv } from "~/lib/env.server";
 import { callCommerce } from "~/lib/commerce.server";
 import { Separator } from "~/components/ui/separator";
+import { useState, useEffect } from "react";
 
 interface Product {
 	id: string;
@@ -17,17 +18,7 @@ export const meta: Route.MetaFunction = () => [
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const { session, headers } = await requireAuth(request, context);
-	const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnv(context);
-	const token = session?.access_token ?? "";
-
-	const { products } = await callCommerce<{ products: Product[] }>({
-		supabaseUrl: SUPABASE_URL,
-		anonKey: SUPABASE_ANON_KEY,
-		accessToken: token,
-		action: "my-products",
-	});
-
-	return withHeaders({ products: products ?? [], ENV: getEnv(context) }, headers);
+	return withHeaders({ token: session?.access_token ?? "", ENV: getEnv(context) }, headers);
 };
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
@@ -65,8 +56,37 @@ const CONTENT_TYPE_EMOJI: Record<string, string> = {
 	fundraiser: "🤝",
 };
 
+function ProductSkeleton() {
+	return (
+		<div className="flex flex-col gap-2">
+			{[1, 2, 3].map((i) => (
+				<div
+					key={i}
+					className="h-12 animate-pulse rounded-xl border"
+					style={{ borderColor: "var(--border)", background: "var(--muted)" }}
+				/>
+			))}
+		</div>
+	);
+}
+
 export default function DashboardProductsRoute({ loaderData }: Route.ComponentProps) {
-	const { products } = loaderData;
+	const { token, ENV } = loaderData;
+	const [products, setProducts] = useState<Product[] | null>(null);
+
+	useEffect(() => {
+		fetch(`${ENV.SUPABASE_URL}/functions/v1/commerce`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${ENV.SUPABASE_ANON_KEY}`,
+				"x-user-token": token,
+			},
+			body: JSON.stringify({ action: "my-products" }),
+		})
+			.then((r) => r.json())
+			.then((d) => setProducts(d.products ?? []));
+	}, [token, ENV.SUPABASE_URL, ENV.SUPABASE_ANON_KEY]);
 
 	return (
 		<div className="max-w-2xl">
@@ -77,7 +97,9 @@ export default function DashboardProductsRoute({ loaderData }: Route.ComponentPr
 
 			<Separator className="my-6" />
 
-			{products.length === 0 ? (
+			{products === null ? (
+				<ProductSkeleton />
+			) : products.length === 0 ? (
 				<div
 					className="rounded-xl border border-dashed p-10 text-center text-sm"
 					style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
