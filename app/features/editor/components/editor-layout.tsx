@@ -141,12 +141,12 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 					<div>
 						<h1 className="text-2xl font-bold tracking-tight">My Links</h1>
 						<p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-							superlinks.me/{storefront.slug}
+							superlinks.me/{profile?.username ?? storefront.slug}
 						</p>
 					</div>
 					<div className="flex gap-2">
 						<Button variant="outline" size="sm" asChild>
-							<a href={`/${storefront.slug}`} target="_blank" rel="noopener noreferrer">
+							<a href={`/${profile?.username ?? storefront.slug}`} target="_blank" rel="noopener noreferrer">
 								View page
 							</a>
 						</Button>
