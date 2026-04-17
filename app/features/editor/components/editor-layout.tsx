@@ -146,7 +146,7 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 					</div>
 					<div className="flex gap-2">
 						<Button variant="outline" size="sm" asChild>
-							<a href={`/${storefront.slug}`} target="_blank" rel="noopener noreferrer">
+							<a href={`/${profile?.username ?? storefront.slug}`} target="_blank" rel="noopener noreferrer">
 								View page
 							</a>
 						</Button>

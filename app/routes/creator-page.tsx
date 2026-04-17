@@ -25,7 +25,7 @@ export const meta: Route.MetaFunction = ({ data }: { data?: Record<string, any> 
 	];
 };
 
-export const links = ({ data }: { data?: Record<string, any> }): LinkDescriptor[] => {
+export const links = ({ data }: { data?: Record<string, any> } = {}): LinkDescriptor[] => {
 	const font = data?.storefront?.theme?.fontFamily as string | undefined;
 	if (!font || font === "Inter") return [];
 	const href = getFontStylesheetUrl(font);
