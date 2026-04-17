@@ -9,21 +9,54 @@ import { toast } from "sonner";
 import { DesignTab } from "./design-tab";
 import { resolveThemeVars, type PresetTheme } from "~/features/creator-page/lib/theming";
 
+// profiles is the source of truth for bio/social/theme — update-profile writes here
+// and the public creator page reads from profiles too. storefronts fields are legacy
+// and only used as a fallback for accounts predating migration 014.
+interface Profile {
+	id?: string;
+	username?: string;
+	slug?: string;
+	display_name?: string;
+	bio?: string;
+	website?: string;
+	twitter?: string;
+	telegram?: string;
+	farcaster?: string;
+	theme?: Record<string, unknown>;
+	avatar_url?: string;
+	banner_url?: string;
+}
+
+interface Storefront {
+	id?: string;
+	slug?: string;
+	name?: string;
+	bio?: string;
+	website?: string;
+	twitter?: string;
+	telegram?: string;
+	farcaster?: string;
+	theme?: Record<string, unknown>;
+	avatar_url?: string;
+	banner_url?: string;
+}
+
 interface EditorLayoutProps {
 	data: {
-		storefronts: any;
-		profile: any;
-		links: any;
+		storefronts: { storefronts?: Storefront[] } | null;
+		profile: Profile | null;
+		links: { links?: Array<{ id: string; title: string; url: string; icon: string | null }> } | null;
 		ENV: { SUPABASE_URL: string; SUPABASE_ANON_KEY: string };
 	};
 }
 
 export const EditorLayout = ({ data }: EditorLayoutProps) => {
 	const { profile, links: linksData } = data;
-	const storefronts = (data.storefronts as any)?.storefronts ?? [];
+	const storefronts = data.storefronts?.storefronts ?? [];
 	const storefront = storefronts[0];
-	const existingLinks = (linksData as any)?.links ?? [];
+	const existingLinks = linksData?.links ?? [];
 	const fetcher = useFetcher();
+	const handleFetcher = useFetcher();
 
 	const [handle, setHandle] = useState(profile?.username ?? storefront?.slug ?? "");
 	const [displayName, setDisplayName] = useState(profile?.display_name ?? storefront?.name ?? "");
@@ -32,6 +65,21 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 	const [twitter, setTwitter] = useState(profile?.twitter ?? storefront?.twitter ?? "");
 	const [telegram, setTelegram] = useState(profile?.telegram ?? storefront?.telegram ?? "");
 	const [farcaster, setFarcaster] = useState(profile?.farcaster ?? storefront?.farcaster ?? "");
+
+	// Sync state when loader revalidates after a save
+	useEffect(() => {
+		setBio(profile?.bio ?? storefront?.bio ?? "");
+		setWebsite(profile?.website ?? storefront?.website ?? "");
+		setTwitter(profile?.twitter ?? storefront?.twitter ?? "");
+		setTelegram(profile?.telegram ?? storefront?.telegram ?? "");
+		setFarcaster(profile?.farcaster ?? storefront?.farcaster ?? "");
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [profile?.bio, profile?.website, profile?.twitter, profile?.telegram, profile?.farcaster]);
+
+	useEffect(() => {
+		setHandle(profile?.username ?? storefront?.slug ?? "");
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [profile?.username]);
 
 	const [newLinkTitle, setNewLinkTitle] = useState("");
 	const [newLinkUrl, setNewLinkUrl] = useState("");
@@ -55,10 +103,26 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 		}
 	}, [fetcher.state, fetcher.data]);
 
+	useEffect(() => {
+		if (handleFetcher.state === "idle" && handleFetcher.data) {
+			const result = handleFetcher.data as { ok?: boolean; error?: string };
+			if (!result.ok && result.error) {
+				toast.error(`Handle: ${result.error}`);
+			}
+		}
+	}, [handleFetcher.state, handleFetcher.data]);
+
 	const handleSaveProfile = () => {
+		const originalHandle = profile?.username ?? storefront?.slug ?? "";
+		if (handle !== originalHandle) {
+			const handleFormData = new FormData();
+			handleFormData.set("intent", "update-username");
+			handleFormData.set("username", handle);
+			handleFetcher.submit(handleFormData, { method: "post" });
+		}
+
 		const formData = new FormData();
 		formData.set("intent", "update-profile");
-		formData.set("handle", handle);
 		formData.set("display_name", displayName);
 		formData.set("bio", bio);
 		formData.set("website", website);
@@ -98,6 +162,8 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 			</div>
 		);
 	}
+
+	const isSaving = fetcher.state !== "idle" || handleFetcher.state !== "idle";
 
 	const isLeftLayout = resolvedPreview.headerLayout === "left";
 	const previewBg = resolvedPreview.cssVars["--lt-bg"] ?? "#ffffff";
@@ -150,8 +216,8 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 								View page
 							</a>
 						</Button>
-						<Button size="sm" onClick={handleSaveProfile} disabled={fetcher.state !== "idle"}>
-							{fetcher.state !== "idle" ? "Saving..." : "Save"}
+						<Button size="sm" onClick={handleSaveProfile} disabled={isSaving}>
+							{isSaving ? "Saving..." : "Save"}
 						</Button>
 					</div>
 				</div>
@@ -216,7 +282,7 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 							</h2>
 
 							<div className="space-y-2">
-								{existingLinks.map((link: any) => (
+								{existingLinks.map((link) => (
 									<div
 										key={link.id}
 										className="flex items-center gap-3 rounded-lg border p-3"
@@ -304,7 +370,7 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 
 						{/* Preview links */}
 						<div className="space-y-2">
-							{existingLinks.slice(0, 4).map((link: any) => (
+							{existingLinks.slice(0, 4).map((link) => (
 								<div
 									key={link.id}
 									className="flex items-center px-4 py-2.5 text-xs font-medium"
