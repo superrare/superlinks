@@ -55,7 +55,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		body,
 	});
 
-	if (intent === "update-profile" || intent === "update-link" || intent === "reorder-links") {
+	if (intent === "update-profile" || intent === "update-username" || intent === "update-link" || intent === "reorder-links") {
 		const storefronts = await callCommerce<{ storefronts?: Array<{ slug: string }> }>({
 			supabaseUrl: SUPABASE_URL,
 			anonKey: SUPABASE_ANON_KEY,
