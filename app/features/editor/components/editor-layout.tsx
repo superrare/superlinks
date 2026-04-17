@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useFetcher } from "react-router";
+import { useFetcher, useNavigate, useSearchParams } from "react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -57,6 +57,9 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 	const existingLinks = linksData?.links ?? [];
 	const fetcher = useFetcher();
 	const handleFetcher = useFetcher();
+	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
+	const activeTab = searchParams.get("tab") === "design" ? "design" : "content";
 
 	const [handle, setHandle] = useState(profile?.username ?? storefront?.slug ?? "");
 	const [displayName, setDisplayName] = useState(profile?.display_name ?? storefront?.name ?? "");
@@ -222,7 +225,7 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 					</div>
 				</div>
 
-				<Tabs defaultValue="content">
+				<Tabs value={activeTab} onValueChange={(tab) => navigate(tab === "design" ? "?tab=design" : "?", { replace: true })}>
 					<TabsList>
 						<TabsTrigger value="content">Content & Links</TabsTrigger>
 						<TabsTrigger value="design">Design</TabsTrigger>
