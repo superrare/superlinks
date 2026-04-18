@@ -53,9 +53,6 @@ export default function DashboardMessagesRoute({ loaderData }: Route.ComponentPr
 	return (
 		<div>
 			<h1 className="text-2xl font-bold tracking-tight">Messages</h1>
-			<p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-				Conversations with other creators.
-			</p>
 		</div>
 	);
 }

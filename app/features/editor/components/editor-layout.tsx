@@ -99,7 +99,7 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 		if (fetcher.state === "idle" && fetcher.data) {
 			const result = fetcher.data as { ok?: boolean; error?: string };
 			if (result.ok) {
-				toast.success("Changes saved");
+				toast.success("Settings saved!");
 			} else if (result.error) {
 				toast.error(result.error);
 			}
@@ -157,9 +157,9 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 		return (
 			<div className="flex min-h-[60vh] items-center justify-center">
 				<div className="text-center">
-					<h2 className="text-xl font-bold">Setting up your page...</h2>
+					<h2 className="text-xl font-bold">You don&apos;t have a store yet.</h2>
 					<p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-						Your storefront is being created. Refresh the page in a moment.
+						Create one to get started.
 					</p>
 				</div>
 			</div>
@@ -216,11 +216,11 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 					<div className="flex gap-2">
 						<Button variant="outline" size="sm" asChild>
 							<a href={`/${profile?.username ?? storefront.slug}`} target="_blank" rel="noopener noreferrer">
-								View page
+								View public page
 							</a>
 						</Button>
 						<Button size="sm" onClick={handleSaveProfile} disabled={isSaving}>
-							{isSaving ? "Saving..." : "Save"}
+							{isSaving ? "Saving..." : "Save Settings"}
 						</Button>
 					</div>
 				</div>
@@ -241,16 +241,16 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 									<Label htmlFor="handle">Handle</Label>
 									<div className="mt-1 flex items-center overflow-hidden rounded-lg border" style={{ borderColor: "var(--border)" }}>
 										<span className="bg-[var(--bg-surface)] px-3 py-2 text-sm" style={{ color: "var(--text-secondary)" }}>superlinks.me/</span>
-										<Input id="handle" className="border-0 shadow-none focus-visible:ring-0" value={handle} onChange={(e) => setHandle(e.target.value)} />
+										<Input id="handle" className="border-0 shadow-none focus-visible:ring-0" placeholder="yourhandle" value={handle} onChange={(e) => setHandle(e.target.value)} />
 									</div>
 								</div>
 								<div>
 									<Label htmlFor="displayName">Display Name</Label>
-									<Input id="displayName" className="mt-1" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+									<Input id="displayName" className="mt-1" placeholder="My Store" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
 								</div>
 								<div>
 									<Label htmlFor="bio">Bio</Label>
-									<Textarea id="bio" className="mt-1" rows={3} value={bio} onChange={(e) => setBio(e.target.value)} />
+									<Textarea id="bio" className="mt-1" rows={3} placeholder="Tell people about your store..." value={bio} onChange={(e) => setBio(e.target.value)} />
 								</div>
 							</div>
 						</section>
@@ -262,7 +262,7 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 							<div className="grid gap-3 sm:grid-cols-2">
 								<div>
 									<Label htmlFor="website">Website</Label>
-									<Input id="website" className="mt-1" placeholder="https://" value={website} onChange={(e) => setWebsite(e.target.value)} />
+									<Input id="website" className="mt-1" placeholder="https://example.com" value={website} onChange={(e) => setWebsite(e.target.value)} />
 								</div>
 								<div>
 									<Label htmlFor="twitter">X / Twitter</Label>
@@ -283,6 +283,13 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 							<h2 className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
 								Custom Links
 							</h2>
+							<p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+								These appear on your public link page. Drag to reorder.
+							</p>
+
+							{existingLinks.length === 0 && (
+								<p className="text-sm" style={{ color: "var(--text-secondary)" }}>No custom links yet.</p>
+							)}
 
 							<div className="space-y-2">
 								{existingLinks.map((link) => (
@@ -306,13 +313,13 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 							<div className="flex gap-2">
 								<div className="flex-1">
 									<Label htmlFor="new-link-title" className="sr-only">Link title</Label>
-									<Input id="new-link-title" placeholder="Title" value={newLinkTitle} onChange={(e) => setNewLinkTitle(e.target.value)} />
+									<Input id="new-link-title" placeholder="Link title" value={newLinkTitle} onChange={(e) => setNewLinkTitle(e.target.value)} />
 								</div>
 								<div className="flex-1">
 									<Label htmlFor="new-link-url" className="sr-only">Link URL</Label>
 									<Input id="new-link-url" placeholder="https://..." value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} />
 								</div>
-								<Button variant="outline" onClick={handleAddLink}>Add</Button>
+								<Button variant="outline" onClick={handleAddLink}>Add Link</Button>
 							</div>
 						</section>
 					</TabsContent>
@@ -358,7 +365,7 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 							</div>
 							<div className={isLeftLayout ? "min-w-0 flex-1" : ""}>
 								<div className="text-sm font-bold" style={{ color: previewText }}>
-									{displayName || "Your Name"}
+									{displayName || "My Store"}
 								</div>
 							</div>
 							<div className={isLeftLayout ? "w-full" : ""} style={{ marginTop: isLeftLayout ? "-4px" : undefined }}>

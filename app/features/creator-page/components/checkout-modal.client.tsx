@@ -108,7 +108,7 @@ const CheckoutModal = ({ displayName, username }: CheckoutModalProps) => {
 				{step === 1 && (
 					<div className="animate-fade-in">
 						<h3 className="mb-1 text-lg font-bold">Confirm purchase</h3>
-						<p className="mb-5 text-sm text-[var(--text-secondary)]">No wallet connection or signing required.</p>
+						<p className="mb-5 text-sm text-[var(--text-secondary)]">Review the details below. No wallet connection or message signing required.</p>
 						<Button className="w-full" onClick={handlePurchase}>Purchase</Button>
 						<Button variant="ghost" className="mt-2 w-full" onClick={() => setStep(0)}>Back</Button>
 					</div>
@@ -118,7 +118,7 @@ const CheckoutModal = ({ displayName, username }: CheckoutModalProps) => {
 					<div className="animate-fade-in py-8 text-center">
 						<div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-3 border-[var(--border)] border-t-[var(--text)]" />
 						<h3 className="mb-1 text-lg font-bold">Processing payment</h3>
-						<p className="text-sm text-[var(--text-secondary)]">Settling on Base via x402.</p>
+						<p className="text-sm text-[var(--text-secondary)]">Settling on Base via x402. This only takes a moment.</p>
 					</div>
 				)}
 
@@ -126,7 +126,7 @@ const CheckoutModal = ({ displayName, username }: CheckoutModalProps) => {
 					<div className="animate-fade-in py-8 text-center">
 						<div className="mb-4 text-4xl">✓</div>
 						<h3 className="mb-1 text-lg font-bold">Payment confirmed</h3>
-						<p className="mb-5 text-sm text-[var(--text-secondary)]">Your download is ready.</p>
+						<p className="mb-5 text-sm text-[var(--text-secondary)]">Your download is ready. The transaction has been settled on Base.</p>
 						<Button className="w-full" onClick={() => setOpen(false)}>Return to profile</Button>
 					</div>
 				)}

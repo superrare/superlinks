@@ -42,9 +42,9 @@ export default function DiscoverRoute({ loaderData }: Route.ComponentProps) {
 			</div>
 
 			<div className="container-max py-12">
-				<h1 className="text-3xl font-bold tracking-tight">Discover</h1>
+				<h1 className="text-3xl font-bold tracking-tight">Find creators on SuperLinks.me</h1>
 				<p className="mt-2 text-lg" style={{ color: "var(--text-secondary)" }}>
-					Browse creators on SuperLinks.me
+					Discover creators, explore their pages, and support their work.
 				</p>
 
 				<div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -75,7 +75,7 @@ export default function DiscoverRoute({ loaderData }: Route.ComponentProps) {
 
 				{storefronts.length === 0 && (
 					<div className="mt-16 text-center">
-						<p className="text-lg font-medium" style={{ color: "var(--text-secondary)" }}>No creators found yet.</p>
+						<p className="text-lg font-medium" style={{ color: "var(--text-secondary)" }}>No creators yet.</p>
 						<Button className="mt-4" asChild><a href="/signup">Be the first</a></Button>
 					</div>
 				)}

@@ -99,7 +99,7 @@ export default function DashboardProductsRoute({ loaderData }: Route.ComponentPr
 
 			{loadError ? (
 				<p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-					Failed to load.{" "}
+					Failed to load store.{" "}
 					<button className="underline" onClick={() => window.location.reload()}>
 						Refresh
 					</button>
@@ -111,7 +111,7 @@ export default function DashboardProductsRoute({ loaderData }: Route.ComponentPr
 					className="rounded-xl border border-dashed p-10 text-center text-sm"
 					style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
 				>
-					No products yet. Use the SuperLinks commerce tools to create your first product.
+					No products yet. Add your first product.
 				</div>
 			) : (
 				<div className="flex flex-col gap-2">

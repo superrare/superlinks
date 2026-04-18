@@ -112,7 +112,7 @@ export default function DashboardLinksRoute({ loaderData }: Route.ComponentProps
 	if (loadError) {
 		return (
 			<p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-				Failed to load.{" "}
+				Failed to load store settings.{" "}
 				<button className="underline" onClick={() => window.location.reload()}>
 					Refresh
 				</button>

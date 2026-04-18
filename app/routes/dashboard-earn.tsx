@@ -137,7 +137,7 @@ export default function DashboardEarnRoute({ loaderData }: Route.ComponentProps)
 						)}
 					</div>
 				) : (
-					<p className="text-sm" style={{ color: "var(--text-secondary)" }}>Wallet unavailable.</p>
+					<p className="text-sm" style={{ color: "var(--text-secondary)" }}>Could not load wallet.</p>
 				)}
 			</section>
 
@@ -179,9 +179,9 @@ export default function DashboardEarnRoute({ loaderData }: Route.ComponentProps)
 
 			{/* Recent Transactions */}
 			<section className="mb-8">
-				<h2 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Transactions</h2>
+				<h2 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Recent Transactions</h2>
 				{transactions.length === 0 ? (
-					<p className="text-sm" style={{ color: "var(--text-secondary)" }}>No transactions yet.</p>
+					<p className="text-sm" style={{ color: "var(--text-secondary)" }}>No recent transactions.</p>
 				) : (
 					<div className="flex flex-col gap-2">
 						{transactions.map((tx, i) => (
