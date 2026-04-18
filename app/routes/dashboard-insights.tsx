@@ -70,9 +70,9 @@ function AnalyticsContent({ analytics }: { analytics: Analytics }) {
 			<section className="mb-8">
 				<h2 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Page Views</h2>
 				<div className="grid grid-cols-3 gap-3">
+					<StatCard label="Last 24h" value={viewsToday} />
+					<StatCard label="Last 7 days" value={viewsThisWeek} />
 					<StatCard label="All time" value={totalViews} />
-					<StatCard label="This week" value={viewsThisWeek} />
-					<StatCard label="Today" value={viewsToday} />
 				</div>
 
 				{dailyViews.length > 0 && (
@@ -96,7 +96,7 @@ function AnalyticsContent({ analytics }: { analytics: Analytics }) {
 			<section>
 				<h2 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Link Clicks</h2>
 				{links.length === 0 ? (
-					<p className="text-sm" style={{ color: "var(--text-secondary)" }}>No link click data yet.</p>
+					<p className="text-sm" style={{ color: "var(--text-secondary)" }}>No links yet. Add custom links in My Links to start tracking.</p>
 				) : (
 					<div className="flex flex-col gap-2">
 						{links.map((r, i) => {
@@ -163,7 +163,7 @@ export default function DashboardInsightsRoute({ loaderData }: Route.ComponentPr
 		<div className="max-w-2xl">
 			<h1 className="text-2xl font-bold tracking-tight">Insights</h1>
 			<p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-				Track page views and link clicks.
+				Track page views and clicks on your links.
 			</p>
 
 			<Separator className="my-6" />

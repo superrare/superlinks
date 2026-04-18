@@ -45,18 +45,19 @@ const BTN_RADIUS_OPTIONS = [
 	{ value: "square", label: "Square" },
 	{ value: "round", label: "Round" },
 	{ value: "rounder", label: "Rounder" },
-	{ value: "full", label: "Pill" },
+	{ value: "full", label: "Full" },
 ];
 
 const AVATAR_SIZE_OPTIONS = [
-	{ value: "small", label: "S" },
-	{ value: "medium", label: "M" },
-	{ value: "large", label: "L" },
+	{ value: "small", label: "Small" },
+	{ value: "medium", label: "Medium" },
+	{ value: "large", label: "Large" },
 ];
 
 const BG_STYLE_OPTIONS = [
-	{ value: "solid", label: "Light" },
-	{ value: "dark", label: "Dark" },
+	{ value: "solid", label: "Solid" },
+	{ value: "gradient", label: "Gradient" },
+	{ value: "dark", label: "Dark Mode" },
 ];
 
 const WALLPAPER_OPTIONS = [
@@ -229,6 +230,8 @@ export const DesignTab = ({ theme, onThemeChange }: DesignTabProps) => {
 	return (
 		<div className="space-y-8">
 			<section className="space-y-3">
+				<h3 className="text-base font-semibold">Link Page Theme</h3>
+				<p className="text-xs" style={{ color: "var(--text-secondary)" }}>Customize how your public link page looks.</p>
 				<Label>Theme</Label>
 				<ThemePresetPicker activePreset={activePreset} onSelect={handlePresetSelect} />
 			</section>
@@ -239,21 +242,21 @@ export const DesignTab = ({ theme, onThemeChange }: DesignTabProps) => {
 			</section>
 
 			<section className="space-y-3">
-				<Label>Avatar Size</Label>
-				<ToggleGroup options={AVATAR_SIZE_OPTIONS} value={fields.avatarSize} onChange={(v) => updateField("avatarSize", v)} compact />
-				<ColorField label="Avatar Shadow" value={fields.avatarShadowColor} onChange={(v) => updateField("avatarShadowColor", v)} placeholder="none" />
+				<Label>Avatar size</Label>
+				<ToggleGroup options={AVATAR_SIZE_OPTIONS} value={fields.avatarSize} onChange={(v) => updateField("avatarSize", v)} />
+				<ColorField label="Avatar shadow color" value={fields.avatarShadowColor} onChange={(v) => updateField("avatarShadowColor", v)} placeholder="none" />
 			</section>
 
 			<section className="space-y-3">
-				<Label>Button Style</Label>
+				<Label>Button style</Label>
 				<ToggleGroup options={BTN_FILL_OPTIONS} value={fields.btnFill} onChange={(v) => updateField("btnFill", v)} />
 
-				<Label>Button Corners</Label>
+				<Label>Corner roundness</Label>
 				<ToggleGroup options={BTN_RADIUS_OPTIONS} value={fields.btnRadius} onChange={(v) => updateField("btnRadius", v)} />
 
 				<div className="grid grid-cols-2 gap-3">
-					<ColorField label="Button Color" value={fields.btnColor} onChange={(v) => updateField("btnColor", v)} />
-					<ColorField label="Button Text" value={fields.btnTextColor} onChange={(v) => updateField("btnTextColor", v)} />
+					<ColorField label="Button color" value={fields.btnColor} onChange={(v) => updateField("btnColor", v)} />
+					<ColorField label="Button text color" value={fields.btnTextColor} onChange={(v) => updateField("btnTextColor", v)} />
 				</div>
 			</section>
 
@@ -271,16 +274,16 @@ export const DesignTab = ({ theme, onThemeChange }: DesignTabProps) => {
 						))}
 					</SelectContent>
 				</Select>
-				<ColorField label="Font Color" value={fields.fontColor} onChange={(v) => updateField("fontColor", v)} />
+				<ColorField label="Text Color" value={fields.fontColor} onChange={(v) => updateField("fontColor", v)} />
 			</section>
 
 			<section className="space-y-3">
-				<Label>Social Links Color</Label>
+				<Label>Social links color</Label>
 				<ColorField label="Color" value={fields.socialLinksColor} onChange={(v) => updateField("socialLinksColor", v)} />
 			</section>
 
 			<section className="space-y-3">
-				<Label>Background</Label>
+				<Label>Background Style</Label>
 				<Select value={fields.bgStyle} onValueChange={(v) => updateField("bgStyle", v)}>
 					<SelectTrigger className="w-full">
 						<SelectValue />
@@ -295,7 +298,7 @@ export const DesignTab = ({ theme, onThemeChange }: DesignTabProps) => {
 			</section>
 
 			<section className="space-y-3">
-				<Label>Wallpaper</Label>
+				<Label>Wallpaper Style</Label>
 				<ToggleGroup options={WALLPAPER_OPTIONS} value={fields.wallpaperStyle} onChange={(v) => updateField("wallpaperStyle", v)} />
 			</section>
 

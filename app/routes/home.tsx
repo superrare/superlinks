@@ -11,6 +11,10 @@ export const meta: Route.MetaFunction = () => [
 	{ name: "description", content: "The all-in-one link-in-bio for creators. Share links, sell products, and grow your audience." },
 	{ property: "og:title", content: "SuperLinks.me — Everything your fans need, all in one place" },
 	{ property: "og:description", content: "The all-in-one link-in-bio for creators. Share links, sell products, and grow your audience." },
+	{ property: "og:type", content: "website" },
+	{ name: "twitter:card", content: "summary" },
+	{ name: "twitter:title", content: "SuperLinks.me — Everything your fans need, all in one place" },
+	{ name: "twitter:description", content: "The all-in-one link-in-bio for creators. Share links, sell products, and grow your audience." },
 ];
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
@@ -119,7 +123,7 @@ export default function HomePage({ loaderData }: Route.ComponentProps) {
 				</div>
 			</Section>
 
-			<Section id="analytics" label="Analytics" title="Understand your audience at a glance." description="Track clicks, streams, and purchases in real time. See what's working and make data-driven decisions.">
+			<Section id="analytics" label="Analytics" title="Understand your audience at a glance." description="Track clicks, streams, and purchases in real time. See what's working and make data-driven decisions to keep your audience engaged.">
 				<div className="grid grid-cols-2 gap-4">
 					{[
 						{ value: "43,500", label: "Clicks" },
@@ -139,7 +143,7 @@ export default function HomePage({ loaderData }: Route.ComponentProps) {
 			<section className="container-max pb-28 pt-20 text-center">
 				<h2 className="text-3xl font-semibold tracking-tight lg:text-4xl">Ready to stand out?</h2>
 				<p className="mx-auto mt-4 text-lg" style={{ color: "var(--text-secondary)" }}>Claim your free page and start sharing in minutes.</p>
-				<ClaimInput className="mx-auto mt-8" />
+				<ClaimInput className="mx-auto mt-8" buttonLabel="Get started free" />
 			</section>
 
 			{/* Footer */}
@@ -154,14 +158,17 @@ export default function HomePage({ loaderData }: Route.ComponentProps) {
 	);
 }
 
-const ClaimInput = ({ className = "" }: { className?: string }) => {
+const ClaimInput = ({ className = "", buttonLabel = "Claim for free" }: { className?: string; buttonLabel?: string }) => {
 	const [username, setUsername] = useState("");
+	const [placeholder, setPlaceholder] = useState("username");
 
 	const handleClaim = () => {
 		const sanitized = username.trim().replace(/[^a-zA-Z0-9_-]/g, "");
-		if (sanitized) {
-			window.location.href = `/signup?username=${encodeURIComponent(sanitized)}`;
+		if (!sanitized) {
+			setPlaceholder("enter a username");
+			return;
 		}
+		window.location.href = `/signup?username=${encodeURIComponent(sanitized)}`;
 	};
 
 	return (
@@ -169,7 +176,7 @@ const ClaimInput = ({ className = "" }: { className?: string }) => {
 			<span className="whitespace-nowrap py-3.5 pl-4 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>superlinks.me/</span>
 			<Input
 				className="border-0 bg-transparent shadow-none focus-visible:ring-0"
-				placeholder="username"
+				placeholder={placeholder}
 				autoComplete="off"
 				spellCheck={false}
 				value={username}
@@ -181,7 +188,7 @@ const ClaimInput = ({ className = "" }: { className?: string }) => {
 				className="shrink-0 whitespace-nowrap px-4 py-3 text-sm font-semibold transition-colors hover:text-[var(--accent-hover)]"
 				onClick={handleClaim}
 			>
-				Claim for free
+				{buttonLabel}
 			</button>
 		</div>
 	);

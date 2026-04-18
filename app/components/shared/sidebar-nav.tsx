@@ -53,7 +53,7 @@ const NavContent = ({
 				<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--accent)] text-sm font-black text-[var(--accent-text)]">
 					S
 				</span>
-				{expanded && <span>SuperLinks</span>}
+				{expanded && <span>SuperLinks.me</span>}
 			</Link>
 
 			<nav className="flex flex-1 flex-col gap-1">
@@ -121,7 +121,7 @@ export const SidebarNav = ({ user }: SidebarNavProps) => {
 						size="icon"
 						className="mt-2 h-8 w-8 self-end"
 						onClick={() => setExpanded((v) => !v)}
-						aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+						aria-label="Toggle menu"
 					>
 						{expanded ? (
 							<ChevronLeftIcon className="h-4 w-4" />
@@ -136,8 +136,8 @@ export const SidebarNav = ({ user }: SidebarNavProps) => {
 			<div className="fixed top-0 left-0 z-50 p-3 md:hidden">
 				<Sheet>
 					<SheetTrigger asChild>
-						<Button variant="outline" size="icon" className="h-10 w-10">
-							<MenuIcon className="h-5 w-5" />
+					<Button variant="outline" size="icon" className="h-10 w-10" aria-label="Open menu">
+						<MenuIcon className="h-5 w-5" />
 						</Button>
 					</SheetTrigger>
 					<SheetContent side="left" className="w-64 p-4">

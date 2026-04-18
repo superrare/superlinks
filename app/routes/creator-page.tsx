@@ -21,6 +21,9 @@ export const meta: Route.MetaFunction = ({ data }: { data?: Record<string, any> 
 		{ property: "og:description", content: s.bio ?? `${displayName} on SuperLinks.me` },
 		{ property: "og:type", content: "profile" },
 		...(s.avatar_url ? [{ property: "og:image", content: s.avatar_url }] : []),
+		{ name: "twitter:card", content: "summary" },
+		{ name: "twitter:title", content: `${displayName} — SuperLinks.me` },
+		{ name: "twitter:description", content: s.bio ?? `${displayName} on SuperLinks.me` },
 	];
 };
 
@@ -52,7 +55,7 @@ export const loader = async ({ params, request, context }: Route.LoaderArgs) => 
 			ENV: getEnv(context),
 		};
 	} catch {
-		throw new Response("Profile not found", { status: 404 });
+		throw new Response("Profile not found.", { status: 404 });
 	}
 };
 

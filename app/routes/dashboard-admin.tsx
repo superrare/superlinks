@@ -47,7 +47,7 @@ export default function DashboardAdminRoute({ loaderData }: Route.ComponentProps
 				<div className="text-center">
 					<h1 className="text-2xl font-bold">Access Denied</h1>
 					<p className="mt-2" style={{ color: "var(--text-secondary)" }}>
-						You don&apos;t have admin privileges.
+						You don&apos;t have admin access.
 					</p>
 				</div>
 			</div>
@@ -58,7 +58,7 @@ export default function DashboardAdminRoute({ loaderData }: Route.ComponentProps
 		<div>
 			<h1 className="text-2xl font-bold tracking-tight">Admin</h1>
 			<p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-				{loaderData.users.length} registered users.
+				{loaderData.users.length} users
 			</p>
 		</div>
 	);
