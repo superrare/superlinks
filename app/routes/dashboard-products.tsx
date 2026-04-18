@@ -2,7 +2,9 @@ import type { Route } from "./+types/dashboard-products";
 import { requireAuth, withHeaders } from "~/features/auth/server/auth.server";
 import { getEnv } from "~/lib/env.server";
 import { callCommerce } from "~/lib/commerce.server";
+import { commerceFetch } from "~/lib/commerce";
 import { Separator } from "~/components/ui/separator";
+import { useState, useEffect } from "react";
 
 interface Product {
 	id: string;
@@ -17,17 +19,7 @@ export const meta: Route.MetaFunction = () => [
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const { session, headers } = await requireAuth(request, context);
-	const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnv(context);
-	const token = session?.access_token ?? "";
-
-	const { products } = await callCommerce<{ products: Product[] }>({
-		supabaseUrl: SUPABASE_URL,
-		anonKey: SUPABASE_ANON_KEY,
-		accessToken: token,
-		action: "my-products",
-	});
-
-	return withHeaders({ products: products ?? [], ENV: getEnv(context) }, headers);
+	return withHeaders({ token: session?.access_token ?? "", ENV: getEnv(context) }, headers);
 };
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
@@ -65,8 +57,36 @@ const CONTENT_TYPE_EMOJI: Record<string, string> = {
 	fundraiser: "🤝",
 };
 
+function ProductSkeleton() {
+	return (
+		<div className="flex flex-col gap-2">
+			{[1, 2, 3].map((i) => (
+				<div
+					key={i}
+					className="h-12 animate-pulse rounded-xl border"
+					style={{ borderColor: "var(--border)", background: "var(--muted)" }}
+				/>
+			))}
+		</div>
+	);
+}
+
 export default function DashboardProductsRoute({ loaderData }: Route.ComponentProps) {
-	const { products } = loaderData;
+	const [products, setProducts] = useState<Product[] | null>(null);
+	const [loadError, setLoadError] = useState(false);
+
+	useEffect(() => {
+		const { token, ENV } = loaderData;
+		let cancelled = false;
+		setLoadError(false);
+
+		commerceFetch<{ products?: Product[] }>(ENV, token, "my-products")
+			.then((d) => { if (!cancelled) setProducts(d.products ?? []); })
+			.catch(() => { if (!cancelled) setLoadError(true); });
+
+		return () => { cancelled = true; };
+		// loaderData is a new reference after every navigation and post-action revalidation.
+	}, [loaderData]);
 
 	return (
 		<div className="max-w-2xl">
@@ -77,7 +97,16 @@ export default function DashboardProductsRoute({ loaderData }: Route.ComponentPr
 
 			<Separator className="my-6" />
 
-			{products.length === 0 ? (
+			{loadError ? (
+				<p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+					Failed to load.{" "}
+					<button className="underline" onClick={() => window.location.reload()}>
+						Refresh
+					</button>
+				</p>
+			) : products === null ? (
+				<ProductSkeleton />
+			) : products.length === 0 ? (
 				<div
 					className="rounded-xl border border-dashed p-10 text-center text-sm"
 					style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}

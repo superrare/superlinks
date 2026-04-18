@@ -1,8 +1,9 @@
 import type { Route } from "./+types/dashboard-insights";
 import { requireAuth, withHeaders } from "~/features/auth/server/auth.server";
 import { getEnv } from "~/lib/env.server";
-import { callCommerce } from "~/lib/commerce.server";
+import { commerceFetch } from "~/lib/commerce";
 import { Separator } from "~/components/ui/separator";
+import { useState, useEffect } from "react";
 
 interface DailyView {
 	date: string;
@@ -17,15 +18,12 @@ interface LinkRow {
 	click_count?: number;
 }
 
-interface PageViewAnalytics {
-	total_views?: number;
-	views_today?: number;
-	views_this_week?: number;
-	daily?: DailyView[];
-}
-
-interface LinkAnalytics {
-	analytics?: LinkRow[];
+interface Analytics {
+	totalViews: number;
+	viewsToday: number;
+	viewsThisWeek: number;
+	dailyViews: DailyView[];
+	links: LinkRow[];
 }
 
 export const meta: Route.MetaFunction = () => [
@@ -34,21 +32,7 @@ export const meta: Route.MetaFunction = () => [
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const { session, headers } = await requireAuth(request, context);
-	const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnv(context);
-	const token = session?.access_token ?? "";
-
-	const [pvResult, laResult] = await Promise.all([
-		callCommerce<PageViewAnalytics>({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "page-view-analytics" }),
-		callCommerce<LinkAnalytics>({ supabaseUrl: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY, accessToken: token, action: "link-analytics" }),
-	]);
-
-	return withHeaders({
-		totalViews: pvResult.total_views ?? 0,
-		viewsToday: pvResult.views_today ?? 0,
-		viewsThisWeek: pvResult.views_this_week ?? 0,
-		dailyViews: pvResult.daily ?? [],
-		links: laResult.analytics ?? [],
-	}, headers);
+	return withHeaders({ token: session?.access_token ?? "", ENV: getEnv(context) }, headers);
 };
 
 function StatCard({ label, value }: { label: string; value: number }) {
@@ -63,22 +47,26 @@ function StatCard({ label, value }: { label: string; value: number }) {
 	);
 }
 
-export default function DashboardInsightsRoute({ loaderData }: Route.ComponentProps) {
-	const { totalViews, viewsToday, viewsThisWeek, dailyViews, links } = loaderData;
+function InsightsSkeleton() {
+	return (
+		<div className="space-y-6">
+			<div className="grid grid-cols-3 gap-3">
+				{[1, 2, 3].map((i) => (
+					<div key={i} className="h-20 animate-pulse rounded-xl border" style={{ borderColor: "var(--border)", background: "var(--muted)" }} />
+				))}
+			</div>
+			<div className="h-20 animate-pulse rounded-xl border" style={{ borderColor: "var(--border)", background: "var(--muted)" }} />
+		</div>
+	);
+}
 
-	const maxClicks = links.reduce((m, r) => Math.max(m, r.click_count ?? 0), 1);
+function AnalyticsContent({ analytics }: { analytics: Analytics }) {
+	const { totalViews, viewsToday, viewsThisWeek, dailyViews, links } = analytics;
 	const maxDaily = Math.max(...dailyViews.map((d) => d.count), 1);
+	const maxClicks = links.reduce((m, r) => Math.max(m, r.click_count ?? 0), 1);
 
 	return (
-		<div className="max-w-2xl">
-			<h1 className="text-2xl font-bold tracking-tight">Insights</h1>
-			<p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-				Track page views and link clicks.
-			</p>
-
-			<Separator className="my-6" />
-
-			{/* Page view stats */}
+		<>
 			<section className="mb-8">
 				<h2 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Page Views</h2>
 				<div className="grid grid-cols-3 gap-3">
@@ -87,7 +75,6 @@ export default function DashboardInsightsRoute({ loaderData }: Route.ComponentPr
 					<StatCard label="Today" value={viewsToday} />
 				</div>
 
-				{/* Daily sparkline */}
 				{dailyViews.length > 0 && (
 					<div className="mt-4 flex items-end gap-1 rounded-xl border px-4 py-4" style={{ borderColor: "var(--border)", background: "var(--card)", height: "80px" }}>
 						{dailyViews.map((d, i) => {
@@ -106,7 +93,6 @@ export default function DashboardInsightsRoute({ loaderData }: Route.ComponentPr
 				)}
 			</section>
 
-			{/* Link clicks */}
 			<section>
 				<h2 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Link Clicks</h2>
 				{links.length === 0 ? (
@@ -115,7 +101,6 @@ export default function DashboardInsightsRoute({ loaderData }: Route.ComponentPr
 					<div className="flex flex-col gap-2">
 						{links.map((r, i) => {
 							const clicks = r.click_count ?? 0;
-							const barPct = (clicks / maxClicks) * 100;
 							const id = r.link_id ?? r.id ?? String(i);
 							return (
 								<div
@@ -125,7 +110,7 @@ export default function DashboardInsightsRoute({ loaderData }: Route.ComponentPr
 								>
 									<div
 										className="pointer-events-none absolute inset-y-0 left-0 rounded-xl opacity-10"
-										style={{ width: `${barPct}%`, background: "var(--accent, #6366f1)" }}
+										style={{ width: `${(clicks / maxClicks) * 100}%`, background: "var(--accent, #6366f1)" }}
 									/>
 									<div className="relative flex items-center gap-3">
 										<span className="flex-1 truncate font-medium">{r.title ?? r.url ?? id}</span>
@@ -141,6 +126,60 @@ export default function DashboardInsightsRoute({ loaderData }: Route.ComponentPr
 					</div>
 				)}
 			</section>
+		</>
+	);
+}
+
+export default function DashboardInsightsRoute({ loaderData }: Route.ComponentProps) {
+	const [analytics, setAnalytics] = useState<Analytics | null>(null);
+	const [loadError, setLoadError] = useState(false);
+
+	useEffect(() => {
+		const { token, ENV } = loaderData;
+		let cancelled = false;
+		setLoadError(false);
+
+		Promise.all([
+			commerceFetch<{ total_views?: number; views_today?: number; views_this_week?: number; daily?: DailyView[] }>(ENV, token, "page-view-analytics"),
+			commerceFetch<{ analytics?: LinkRow[] }>(ENV, token, "link-analytics"),
+		])
+			.then(([pv, la]) => {
+				if (!cancelled) {
+					setAnalytics({
+						totalViews: pv.total_views ?? 0,
+						viewsToday: pv.views_today ?? 0,
+						viewsThisWeek: pv.views_this_week ?? 0,
+						dailyViews: pv.daily ?? [],
+						links: la.analytics ?? [],
+					});
+				}
+			})
+			.catch(() => { if (!cancelled) setLoadError(true); });
+
+		return () => { cancelled = true; };
+	}, [loaderData]);
+
+	return (
+		<div className="max-w-2xl">
+			<h1 className="text-2xl font-bold tracking-tight">Insights</h1>
+			<p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+				Track page views and link clicks.
+			</p>
+
+			<Separator className="my-6" />
+
+			{loadError ? (
+				<p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+					Failed to load.{" "}
+					<button className="underline" onClick={() => window.location.reload()}>
+						Refresh
+					</button>
+				</p>
+			) : analytics === null ? (
+				<InsightsSkeleton />
+			) : (
+				<AnalyticsContent analytics={analytics} />
+			)}
 		</div>
 	);
 }
