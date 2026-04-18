@@ -38,7 +38,7 @@ export default function DashboardSettingsRoute({ loaderData }: Route.ComponentPr
 			<h1 className="text-2xl font-bold tracking-tight">Settings</h1>
 
 			<div className="mt-8">
-				<h2 className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
+				<h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
 					Account
 				</h2>
 				<div className="mt-3 flex items-center justify-between">
@@ -50,7 +50,7 @@ export default function DashboardSettingsRoute({ loaderData }: Route.ComponentPr
 			<Separator className="my-6" />
 
 			<div>
-				<h2 className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
+				<h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
 					Appearance
 				</h2>
 				<div className="mt-3 flex items-center justify-between">
