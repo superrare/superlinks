@@ -4,6 +4,7 @@ import { getEnv } from "~/lib/env.server";
 import { callCommerce } from "~/lib/commerce.server";
 import { commerceFetch } from "~/lib/commerce";
 import { resolveThemeVars } from "~/features/creator-page/lib/theming";
+import { ProfilePreview, type PreviewLink } from "~/features/creator-page/components/profile-preview";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -594,144 +595,20 @@ interface ProfileData {
 	username?: string;
 	display_name?: string;
 	avatar_url?: string;
+	bio?: string;
+	website?: string;
+	twitter?: string;
+	telegram?: string;
+	farcaster?: string;
 	theme?: Record<string, unknown>;
 }
-
-const PagePreview = ({
-	products,
-	profile,
-	storeName,
-}: {
-	products: Product[];
-	profile: ProfileData | null;
-	storeName: string;
-}) => {
-	const theme = resolveThemeVars(profile?.theme);
-	const displayName = profile?.display_name ?? storeName;
-	const handle = profile?.username ?? storeName;
-	const previewBg = theme.cssVars["--lt-bg"] ?? "#ffffff";
-	const previewText = theme.cssVars["--lt-text"] ?? "#111";
-	const previewDim = theme.cssVars["--lt-dim"] ?? "#666";
-	const previewBorder = theme.cssVars["--lt-border"] ?? "#e5e5e5";
-	const isLeftLayout = theme.headerLayout === "left";
-
-	const linkBorderRadius =
-		theme.linkStyle.match(/border-radius:([^;]+)/)?.[1] ?? "12px";
-
-	const linkItemStyle = ((): React.CSSProperties => {
-		if (theme.btnFill === "outline") {
-			return {
-				borderRadius: linkBorderRadius,
-				border: `1px solid ${theme.effectiveBtnColor}40`,
-				background: "transparent",
-				color: theme.btnTextColor || previewText,
-			};
-		}
-		if (theme.btnFill === "glass") {
-			return {
-				borderRadius: linkBorderRadius,
-				border: `1px solid ${theme.effectiveBtnColor}30`,
-				background: `${theme.effectiveBtnColor}18`,
-				backdropFilter: "blur(8px)",
-				color: theme.btnTextColor || previewText,
-			};
-		}
-		return {
-			borderRadius: linkBorderRadius,
-			border: `1px solid ${theme.effectiveBtnColor}`,
-			background: theme.effectiveBtnColor,
-			color: theme.btnTextColor || "#ffffff",
-		};
-	})();
-
-	const shopProducts = products.filter(
-		(p) => p.status === "active" && p.content_type !== "app" && p.content_type !== "fundraiser",
-	);
-
-	return (
-		<div className="sticky top-8">
-			<div
-				className="overflow-hidden rounded-[2rem] border p-6 shadow-lg"
-				style={{
-					background: previewBg,
-					borderColor: previewBorder,
-					width: "280px",
-					minHeight: "500px",
-					fontFamily: theme.cssVars["--lt-font"] ?? "Inter, sans-serif",
-					color: previewText,
-				}}
-			>
-				<div className="mx-auto mb-6 h-1.5 w-16 rounded-full" style={{ background: previewBorder }} />
-
-				<div className={isLeftLayout ? "mb-4 flex flex-wrap items-center gap-3" : "mb-6 text-center"}>
-					{(() => {
-						const avatarSrc = profile?.avatar_url;
-						const avatarSize = isLeftLayout ? "56px" : theme.avatarPx;
-						return (
-							<div
-								className={`flex items-center justify-center overflow-hidden rounded-full font-extrabold text-white ${
-									isLeftLayout ? "h-14 w-14 shrink-0 text-lg" : "mx-auto mb-3 h-16 w-16 text-xl"
-								}`}
-								style={{
-									background: avatarSrc ? `url(${avatarSrc}) center/cover no-repeat` : theme.effectiveBtnColor,
-									width: avatarSize,
-									height: avatarSize,
-								}}
-							>
-								{!avatarSrc && (displayName.charAt(0).toUpperCase() || "S")}
-							</div>
-						);
-					})()}
-					<div className={isLeftLayout ? "min-w-0 flex-1" : ""}>
-						<div className="text-sm font-bold" style={{ color: previewText }}>
-							{displayName}
-						</div>
-					</div>
-					<div className={isLeftLayout ? "w-full" : ""} style={{ marginTop: isLeftLayout ? "-4px" : undefined }}>
-						<div className="text-xs" style={{ color: previewDim }}>@{handle}</div>
-					</div>
-				</div>
-
-				{shopProducts.length > 0 && (
-					<div>
-						<div className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: previewDim }}>
-							Shop
-						</div>
-						<div className="space-y-2">
-							{shopProducts.slice(0, 5).map((p) => (
-								<div
-									key={p.id}
-									className="flex items-center px-4 py-2.5 text-xs font-medium"
-									style={linkItemStyle}
-								>
-									<span className="mr-2">
-										{CONTENT_TYPE_EMOJI[p.content_type] ?? "📦"}
-									</span>
-									<span className="truncate">{p.title}</span>
-									<span className="ml-auto shrink-0 pl-2 text-[10px] opacity-60">
-										{parseFloat(p.price) === 0 ? "Free" : `${p.price} USDC`}
-									</span>
-								</div>
-							))}
-						</div>
-					</div>
-				)}
-
-				{shopProducts.length === 0 && (
-					<div className="py-8 text-center text-xs" style={{ color: previewDim }}>
-						Products will appear here
-					</div>
-				)}
-			</div>
-		</div>
-	);
-};
 
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
 export default function DashboardProductsRoute({ loaderData }: Route.ComponentProps) {
 	const { token, ENV } = loaderData;
 	const [products, setProducts] = useState<Product[] | null>(null);
+	const [links, setLinks] = useState<PreviewLink[]>([]);
 	const [storeId, setStoreId] = useState<string | null>(null);
 	const [storeName, setStoreName] = useState("");
 	const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -741,10 +618,11 @@ export default function DashboardProductsRoute({ loaderData }: Route.ComponentPr
 	const loadProducts = useCallback(async () => {
 		setLoadError(false);
 		try {
-			const [storeData, productData, profileData] = await Promise.all([
+			const [storeData, productData, profileData, linkData] = await Promise.all([
 				commerceFetch<{ storefronts?: Array<{ id: string; name: string }> }>(ENV, token, "my-storefronts"),
 				commerceFetch<{ products?: Product[] }>(ENV, token, "my-products"),
 				commerceFetch<ProfileData>(ENV, token, "get-profile"),
+				commerceFetch<{ links?: PreviewLink[] }>(ENV, token, "get-links"),
 			]);
 			const storefronts = storeData.storefronts ?? [];
 			if (storefronts.length > 0) {
@@ -753,6 +631,7 @@ export default function DashboardProductsRoute({ loaderData }: Route.ComponentPr
 			}
 			setProducts(productData.products ?? []);
 			setProfile(profileData);
+			setLinks(linkData.links ?? []);
 		} catch {
 			setLoadError(true);
 		}
@@ -818,11 +697,21 @@ export default function DashboardProductsRoute({ loaderData }: Route.ComponentPr
 			</div>
 
 			<aside className="settings-preview hidden lg:flex">
-				<PagePreview
-					products={products ?? []}
-					profile={profile}
-					storeName={storeName}
-				/>
+				<div className="sticky top-8">
+					<ProfilePreview
+						displayName={profile?.display_name ?? storeName}
+						handle={profile?.username ?? storeName}
+						bio={profile?.bio}
+						avatarUrl={profile?.avatar_url ?? null}
+						website={profile?.website}
+						twitter={profile?.twitter}
+						telegram={profile?.telegram}
+						farcaster={profile?.farcaster}
+						links={links}
+						products={products ?? []}
+						theme={resolveThemeVars(profile?.theme)}
+					/>
+				</div>
 			</aside>
 		</div>
 	);

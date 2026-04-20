@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { DesignTab } from "./design-tab";
 import { AvatarEditor } from "./avatar-editor";
 import { resolveThemeVars, type PresetTheme } from "~/features/creator-page/lib/theming";
+import { ProfilePreview, type PreviewProduct } from "~/features/creator-page/components/profile-preview";
 
 // profiles is the source of truth for bio/social/theme — update-profile writes here
 // and the public creator page reads from profiles too. storefronts fields are legacy
@@ -47,15 +48,17 @@ interface EditorLayoutProps {
 		storefronts: { storefronts?: Storefront[] } | null;
 		profile: Profile | null;
 		links: { links?: Array<{ id: string; title: string; url: string; icon: string | null }> } | null;
+		products: { products?: PreviewProduct[] } | null;
 		ENV: { SUPABASE_URL: string; SUPABASE_ANON_KEY: string };
 	};
 }
 
 export const EditorLayout = ({ data }: EditorLayoutProps) => {
-	const { profile, links: linksData } = data;
+	const { profile, links: linksData, products: productsData } = data;
 	const storefronts = data.storefronts?.storefronts ?? [];
 	const storefront = storefronts[0];
 	const existingLinks = linksData?.links ?? [];
+	const existingProducts = productsData?.products ?? [];
 	const fetcher = useFetcher();
 	const handleFetcher = useFetcher();
 	const navigate = useNavigate();
@@ -180,40 +183,7 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 
 	const isSaving = fetcher.state !== "idle" || handleFetcher.state !== "idle";
 
-	const isLeftLayout = resolvedPreview.headerLayout === "left";
-	const previewBg = resolvedPreview.cssVars["--lt-bg"] ?? "#ffffff";
-	const previewText = resolvedPreview.cssVars["--lt-text"] ?? "#111";
-	const previewDim = resolvedPreview.cssVars["--lt-dim"] ?? "#666";
-	const previewBorder = resolvedPreview.cssVars["--lt-border"] ?? "#e5e5e5";
-
-	const linkBorderRadius =
-		resolvedPreview.linkStyle.match(/border-radius:([^;]+)/)?.[1] ?? "12px";
-
-	const linkItemStyle = ((): React.CSSProperties => {
-		if (resolvedPreview.btnFill === "outline") {
-			return {
-				borderRadius: linkBorderRadius,
-				border: `1px solid ${resolvedPreview.effectiveBtnColor}40`,
-				background: "transparent",
-				color: resolvedPreview.btnTextColor || previewText,
-			};
-		}
-		if (resolvedPreview.btnFill === "glass") {
-			return {
-				borderRadius: linkBorderRadius,
-				border: `1px solid ${resolvedPreview.effectiveBtnColor}30`,
-				background: `${resolvedPreview.effectiveBtnColor}18`,
-				backdropFilter: "blur(8px)",
-				color: resolvedPreview.btnTextColor || previewText,
-			};
-		}
-		return {
-			borderRadius: linkBorderRadius,
-			border: `1px solid ${resolvedPreview.effectiveBtnColor}`,
-			background: resolvedPreview.effectiveBtnColor,
-			color: resolvedPreview.btnTextColor || "#ffffff",
-		};
-	})();
+	const previewAvatarUrl = avatarPreviewUrl ?? profile?.avatar_url ?? storefront?.avatar_url ?? null;
 
 	return (
 		<div className="settings-layout">
@@ -341,94 +311,22 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 				</div>
 			</div>
 
-			{/* Live preview panel */}
+			{/* Live preview panel — mirrors the public profile page */}
 			<aside className="settings-preview hidden lg:flex">
 				<div className="sticky top-8">
-					<div
-						className="overflow-hidden rounded-[2rem] border p-6 shadow-lg"
-						style={{
-							background: previewBg,
-							borderColor: previewBorder,
-							width: "280px",
-							minHeight: "500px",
-							fontFamily: resolvedPreview.cssVars["--lt-font"] ?? "Inter, sans-serif",
-							color: previewText,
-						}}
-					>
-						<div className="mx-auto mb-6 h-1.5 w-16 rounded-full" style={{ background: previewBorder }} />
-
-						{/* Header — left or center layout */}
-						<div className={isLeftLayout ? "mb-4 flex flex-wrap items-center gap-3" : "mb-6 text-center"}>
-							{(() => {
-								const avatarSrc = avatarPreviewUrl ?? profile?.avatar_url ?? storefront?.avatar_url;
-								const avatarSize = isLeftLayout ? "56px" : resolvedPreview.avatarPx;
-								return (
-									<div
-										className={`flex items-center justify-center overflow-hidden rounded-full font-extrabold text-white ${
-											isLeftLayout ? "h-14 w-14 shrink-0 text-lg" : "mx-auto mb-3 h-16 w-16 text-xl"
-										}`}
-										style={{
-											background: avatarSrc ? `url(${avatarSrc}) center/cover no-repeat` : resolvedPreview.effectiveBtnColor,
-											width: avatarSize,
-											height: avatarSize,
-											boxShadow: resolvedPreview.avatarShadowColor !== resolvedPreview.accentColor
-												? `0 4px 20px ${resolvedPreview.avatarShadowColor}40`
-												: undefined,
-										}}
-									>
-										{!avatarSrc && (displayName.charAt(0).toUpperCase() || "S")}
-									</div>
-								);
-							})()}
-							<div className={isLeftLayout ? "min-w-0 flex-1" : ""}>
-								<div className="text-sm font-bold" style={{ color: previewText }}>
-									{displayName || "My Store"}
-								</div>
-							</div>
-							<div className={isLeftLayout ? "w-full" : ""} style={{ marginTop: isLeftLayout ? "-4px" : undefined }}>
-								<div className="text-xs" style={{ color: previewDim }}>@{handle || "handle"}</div>
-							</div>
-							{bio && (
-								<div className={`text-xs ${isLeftLayout ? "w-full" : "mx-auto mt-2 max-w-[200px]"}`} style={{ color: previewDim }}>
-									{bio}
-								</div>
-							)}
-						</div>
-
-						{/* Social pills */}
-						{(website || twitter || telegram || farcaster) && (
-							<div className={`mb-4 flex flex-wrap gap-1.5 ${isLeftLayout ? "justify-start" : "justify-center"}`}>
-								{website && (
-									<span className="inline-block rounded-full border px-2.5 py-1 text-[10px] font-semibold" style={{ borderColor: `${resolvedPreview.effectiveBtnColor}60`, color: resolvedPreview.effectiveBtnColor }}>Web</span>
-								)}
-								{twitter && (
-									<span className="inline-block rounded-full border px-2.5 py-1 text-[10px] font-semibold" style={{ borderColor: `${resolvedPreview.effectiveBtnColor}60`, color: resolvedPreview.effectiveBtnColor }}>X</span>
-								)}
-								{telegram && (
-									<span className="inline-block rounded-full border px-2.5 py-1 text-[10px] font-semibold" style={{ borderColor: `${resolvedPreview.effectiveBtnColor}60`, color: resolvedPreview.effectiveBtnColor }}>Telegram</span>
-								)}
-								{farcaster && (
-									<span className="inline-block rounded-full border px-2.5 py-1 text-[10px] font-semibold" style={{ borderColor: `${resolvedPreview.effectiveBtnColor}60`, color: resolvedPreview.effectiveBtnColor }}>Farcaster</span>
-								)}
-							</div>
-						)}
-
-						{/* Preview links */}
-						<div className="space-y-2">
-							{existingLinks.slice(0, 4).map((link) => (
-								<div
-									key={link.id}
-									className="flex items-center px-4 py-2.5 text-xs font-medium"
-									style={linkItemStyle}
-								>
-									<span>{link.title}</span>
-									{resolvedPreview.btnFill === "outline" && (
-										<span className="ml-auto shrink-0 text-base opacity-40" aria-hidden="true">›</span>
-									)}
-								</div>
-							))}
-						</div>
-					</div>
+					<ProfilePreview
+						displayName={displayName}
+						handle={handle}
+						bio={bio}
+						avatarUrl={previewAvatarUrl}
+						website={website}
+						twitter={twitter}
+						telegram={telegram}
+						farcaster={farcaster}
+						links={existingLinks}
+						products={existingProducts}
+						theme={resolvedPreview}
+					/>
 				</div>
 			</aside>
 		</div>

@@ -96,9 +96,10 @@ export default function DashboardLinksRoute({ loaderData }: Route.ComponentProps
 			commerceFetch(ENV, token, "my-storefronts"),
 			commerceFetch(ENV, token, "get-profile"),
 			commerceFetch(ENV, token, "get-links"),
+			commerceFetch(ENV, token, "my-products"),
 		])
-			.then(([storefronts, profile, links]) => {
-				if (!cancelled) setEditorData({ storefronts, profile, links } as EditorData);
+			.then(([storefronts, profile, links, products]) => {
+				if (!cancelled) setEditorData({ storefronts, profile, links, products } as EditorData);
 			})
 			.catch(() => {
 				if (!cancelled) setLoadError(true);
