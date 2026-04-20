@@ -10,7 +10,7 @@
 	"upload_source_maps": true,
 	// Public env vars — safe to commit. Secrets go in dashboard + .dev.vars
 	"vars": {
-		"SUPABASE_URL": "https://your-project.supabase.co",
-		"SUPABASE_ANON_KEY": "your-anon-key"
+		"SUPABASE_URL": "https://tjtnmcitjflopcfpsmsa.supabase.co",
+		"SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqdG5tY2l0amZsb3BjZnBzbXNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNDM1NDAsImV4cCI6MjA4OTkxOTU0MH0.9sOLMcsJWvYkrlcy6z24djx8JgNyCu_3RFQqIS0r5S8"
 	}
 }
