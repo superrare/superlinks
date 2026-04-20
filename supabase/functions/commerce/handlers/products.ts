@@ -10,7 +10,7 @@ import { svcSupabase } from "../../_shared/supabase.ts";
 let _cdpClient: any = null;
 async function getCdpClient() {
   if (_cdpClient) return _cdpClient;
-  const { CdpClient } = await import("npm:@coinbase/cdp-sdk");
+  const { CdpClient } = await import("npm:@coinbase/cdp-sdk@1.47.0");
   _cdpClient = new CdpClient({
     apiKeyId: Deno.env.get("CDP_API_KEY_ID"),
     apiKeySecret: Deno.env.get("CDP_API_KEY_SECRET"),
@@ -345,7 +345,14 @@ export async function buy(ctx: PostHandlerCtx): Promise<Response> {
 
   if (!sellerWallet) return json({ error: "Seller has no wallet" }, 404);
 
-  const cdp = await getCdpClient();
+  let cdp;
+  try {
+    cdp = await getCdpClient();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(JSON.stringify({ event: "cdp_init_failed", error: msg }));
+    return json({ error: `Payment service unavailable: ${msg}` }, 502);
+  }
 
   const usdcAddress = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
   const decimals = 6;
@@ -355,15 +362,33 @@ export async function buy(ctx: PostHandlerCtx): Promise<Response> {
   const paddedAmount = rawAmount.toString(16).padStart(64, "0");
   const calldata = `${selector}${paddedTo}${paddedAmount}`;
 
-  const txHash = await cdp.evm.sendTransaction({
-    address: buyerWallet.provider_wallet_id as `0x${string}`,
-    network: "base-sepolia",
-    transaction: {
-      to: usdcAddress as `0x${string}`,
-      data: calldata as `0x${string}`,
-      value: 0n,
-    },
-  });
+  let txHash;
+  try {
+    txHash = await cdp.evm.sendTransaction({
+      address: buyerWallet.provider_wallet_id as `0x${string}`,
+      network: "base-sepolia",
+      transaction: {
+        to: usdcAddress as `0x${string}`,
+        data: calldata as `0x${string}`,
+        value: 0n,
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(
+      JSON.stringify({
+        event: "cdp_send_tx_failed",
+        productId,
+        buyerUserId: user.id,
+        buyerWalletId: buyerWallet.provider_wallet_id,
+        buyerAddress: buyerWallet.address,
+        sellerAddress: sellerWallet.address,
+        rawAmount: rawAmount.toString(),
+        error: msg,
+      }),
+    );
+    return json({ error: `Payment failed: ${msg}` }, 502);
+  }
 
   const txHashStr =
     typeof txHash === "string"
