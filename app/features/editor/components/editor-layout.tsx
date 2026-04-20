@@ -7,6 +7,7 @@ import { Textarea } from "~/components/ui/textarea";
 import { Label } from "~/components/ui/label";
 import { toast } from "sonner";
 import { DesignTab } from "./design-tab";
+import { AvatarEditor } from "./avatar-editor";
 import { resolveThemeVars, type PresetTheme } from "~/features/creator-page/lib/theming";
 
 // profiles is the source of truth for bio/social/theme — update-profile writes here
@@ -84,6 +85,14 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [profile?.username]);
 
+	const [avatarFile, setAvatarFile] = useState<File | null>(null);
+	const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+
+	const handleAvatarSelect = useCallback((file: File, previewUrl: string) => {
+		setAvatarFile(file);
+		setAvatarPreviewUrl(previewUrl);
+	}, []);
+
 	const [newLinkTitle, setNewLinkTitle] = useState("");
 	const [newLinkUrl, setNewLinkUrl] = useState("");
 
@@ -132,7 +141,10 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 		formData.set("twitter", twitter);
 		formData.set("telegram", telegram);
 		formData.set("farcaster", farcaster);
-		fetcher.submit(formData, { method: "post" });
+		if (avatarFile) {
+			formData.set("avatar", avatarFile);
+		}
+		fetcher.submit(formData, { method: "post", encType: avatarFile ? "multipart/form-data" : undefined });
 	};
 
 	const handleAddLink = () => {
@@ -204,27 +216,8 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 	})();
 
 	return (
-		<div className="grid gap-8 lg:grid-cols-[1fr_320px]">
-			<div>
-				<div className="mb-6 flex items-center justify-between">
-					<div>
-						<h1 className="text-2xl font-bold tracking-tight">My Links</h1>
-						<p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-							superlinks.me/{profile?.username ?? storefront.slug}
-						</p>
-					</div>
-					<div className="flex gap-2">
-						<Button variant="outline" size="sm" asChild>
-							<a href={`/${profile?.username ?? storefront.slug}`} target="_blank" rel="noopener noreferrer">
-								View public page
-							</a>
-						</Button>
-						<Button size="sm" onClick={handleSaveProfile} disabled={isSaving}>
-							{isSaving ? "Saving..." : "Save Settings"}
-						</Button>
-					</div>
-				</div>
-
+		<div className="settings-layout">
+			<div className="settings-form">
 				<Tabs value={activeTab} onValueChange={(tab) => navigate(tab === "design" ? "?tab=design" : "?", { replace: true })}>
 					<TabsList>
 						<TabsTrigger value="content">Content & Links</TabsTrigger>
@@ -232,6 +225,13 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 					</TabsList>
 
 					<TabsContent value="content" className="mt-6 space-y-8">
+						<AvatarEditor
+							avatarUrl={profile?.avatar_url ?? storefront?.avatar_url}
+							displayName={displayName}
+							onFileSelect={handleAvatarSelect}
+							previewUrl={avatarPreviewUrl}
+						/>
+
 						<section className="space-y-4">
 							<h2 className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
 								Profile
@@ -328,10 +328,21 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 						<DesignTab theme={profile?.theme ?? storefront?.theme} onThemeChange={handleThemeChange} />
 					</TabsContent>
 				</Tabs>
+
+				<div className="mt-8 flex items-center gap-3">
+					<Button onClick={handleSaveProfile} disabled={isSaving}>
+						{isSaving ? "Saving..." : "Save Settings"}
+					</Button>
+					<Button variant="outline" asChild>
+						<a href={`/${profile?.username ?? storefront.slug}`} target="_blank" rel="noopener noreferrer">
+							View public page
+						</a>
+					</Button>
+				</div>
 			</div>
 
-			{/* Live preview sidebar */}
-			<aside className="hidden lg:block">
+			{/* Live preview panel */}
+			<aside className="settings-preview hidden lg:flex">
 				<div className="sticky top-8">
 					<div
 						className="overflow-hidden rounded-[2rem] border p-6 shadow-lg"
@@ -348,21 +359,27 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 
 						{/* Header — left or center layout */}
 						<div className={isLeftLayout ? "mb-4 flex flex-wrap items-center gap-3" : "mb-6 text-center"}>
-							<div
-								className={`flex items-center justify-center overflow-hidden rounded-full font-extrabold text-white ${
-									isLeftLayout ? "h-14 w-14 shrink-0 text-lg" : "mx-auto mb-3 h-16 w-16 text-xl"
-								}`}
-								style={{
-									background: resolvedPreview.effectiveBtnColor,
-									width: isLeftLayout ? "56px" : resolvedPreview.avatarPx,
-									height: isLeftLayout ? "56px" : resolvedPreview.avatarPx,
-									boxShadow: resolvedPreview.avatarShadowColor !== resolvedPreview.accentColor
-										? `0 4px 20px ${resolvedPreview.avatarShadowColor}40`
-										: undefined,
-								}}
-							>
-								{displayName.charAt(0).toUpperCase() || "S"}
-							</div>
+							{(() => {
+								const avatarSrc = avatarPreviewUrl ?? profile?.avatar_url ?? storefront?.avatar_url;
+								const avatarSize = isLeftLayout ? "56px" : resolvedPreview.avatarPx;
+								return (
+									<div
+										className={`flex items-center justify-center overflow-hidden rounded-full font-extrabold text-white ${
+											isLeftLayout ? "h-14 w-14 shrink-0 text-lg" : "mx-auto mb-3 h-16 w-16 text-xl"
+										}`}
+										style={{
+											background: avatarSrc ? `url(${avatarSrc}) center/cover no-repeat` : resolvedPreview.effectiveBtnColor,
+											width: avatarSize,
+											height: avatarSize,
+											boxShadow: resolvedPreview.avatarShadowColor !== resolvedPreview.accentColor
+												? `0 4px 20px ${resolvedPreview.avatarShadowColor}40`
+												: undefined,
+										}}
+									>
+										{!avatarSrc && (displayName.charAt(0).toUpperCase() || "S")}
+									</div>
+								);
+							})()}
 							<div className={isLeftLayout ? "min-w-0 flex-1" : ""}>
 								<div className="text-sm font-bold" style={{ color: previewText }}>
 									{displayName || "My Store"}
@@ -377,6 +394,24 @@ export const EditorLayout = ({ data }: EditorLayoutProps) => {
 								</div>
 							)}
 						</div>
+
+						{/* Social pills */}
+						{(website || twitter || telegram || farcaster) && (
+							<div className={`mb-4 flex flex-wrap gap-1.5 ${isLeftLayout ? "justify-start" : "justify-center"}`}>
+								{website && (
+									<span className="inline-block rounded-full border px-2.5 py-1 text-[10px] font-semibold" style={{ borderColor: `${resolvedPreview.effectiveBtnColor}60`, color: resolvedPreview.effectiveBtnColor }}>Web</span>
+								)}
+								{twitter && (
+									<span className="inline-block rounded-full border px-2.5 py-1 text-[10px] font-semibold" style={{ borderColor: `${resolvedPreview.effectiveBtnColor}60`, color: resolvedPreview.effectiveBtnColor }}>X</span>
+								)}
+								{telegram && (
+									<span className="inline-block rounded-full border px-2.5 py-1 text-[10px] font-semibold" style={{ borderColor: `${resolvedPreview.effectiveBtnColor}60`, color: resolvedPreview.effectiveBtnColor }}>Telegram</span>
+								)}
+								{farcaster && (
+									<span className="inline-block rounded-full border px-2.5 py-1 text-[10px] font-semibold" style={{ borderColor: `${resolvedPreview.effectiveBtnColor}60`, color: resolvedPreview.effectiveBtnColor }}>Farcaster</span>
+								)}
+							</div>
+						)}
 
 						{/* Preview links */}
 						<div className="space-y-2">

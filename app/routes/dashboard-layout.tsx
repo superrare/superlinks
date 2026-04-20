@@ -26,7 +26,7 @@ export default function DashboardLayout({ loaderData }: Route.ComponentProps) {
 	return (
 		<div className="app-shell">
 			<SidebarNav user={loaderData.user} />
-			<main className="app-content p-6 pt-16 md:p-8 md:pt-8">
+			<main className="app-content">
 				<Outlet />
 			</main>
 		</div>

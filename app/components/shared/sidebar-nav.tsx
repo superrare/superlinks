@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation, Link } from "react-router";
 import {
 	LinkIcon,
@@ -7,14 +7,13 @@ import {
 	WalletIcon,
 	MessageSquareIcon,
 	ShieldIcon,
-	SettingsIcon,
-	ChevronLeftIcon,
-	ChevronRightIcon,
 	MenuIcon,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Button } from "~/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "~/components/ui/sheet";
+
+const SIDEBAR_KEY = "superlinks:sidebar-expanded";
 
 interface SidebarNavProps {
 	user: {
@@ -35,10 +34,12 @@ const NAV_ITEMS = [
 
 const NavContent = ({
 	expanded,
+	onToggle,
 	user,
 	pathname,
 }: {
 	expanded: boolean;
+	onToggle?: () => void;
 	user: SidebarNavProps["user"];
 	pathname: string;
 }) => {
@@ -46,15 +47,46 @@ const NavContent = ({
 
 	return (
 		<div className="flex h-full flex-col">
-			<Link
-				to="/"
-				className="mb-6 flex items-center gap-2 px-3 py-2 text-lg font-extrabold tracking-tight"
-			>
-				<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--accent)] text-sm font-black text-[var(--accent-text)]">
-					S
-				</span>
-				{expanded && <span>SuperLinks.me</span>}
-			</Link>
+			{expanded ? (
+				<div className="mb-6 flex items-center justify-between">
+					<Link
+						to="/"
+						className="flex items-center gap-2 px-3 py-2 text-lg font-extrabold tracking-tight"
+					>
+						<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--accent)] text-sm font-black text-[var(--accent-text)]">
+							S
+						</span>
+						<span>SuperLinks.me</span>
+					</Link>
+					{onToggle && (
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8 shrink-0"
+							onClick={onToggle}
+							aria-label="Collapse menu"
+							tabIndex={0}
+						>
+							<MenuIcon className="h-4 w-4" />
+						</Button>
+					)}
+				</div>
+			) : (
+				<div className="mb-4 flex flex-col items-center gap-2">
+					{onToggle && (
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8"
+							onClick={onToggle}
+							aria-label="Expand menu"
+							tabIndex={0}
+						>
+							<MenuIcon className="h-4 w-4" />
+						</Button>
+					)}
+				</div>
+			)}
 
 			<nav className="flex flex-1 flex-col gap-1">
 				{NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -98,9 +130,27 @@ const NavContent = ({
 	);
 };
 
+const readSidebarPref = (): boolean => {
+	if (typeof window === "undefined") return true;
+	const stored = localStorage.getItem(SIDEBAR_KEY);
+	return stored === null ? true : stored === "1";
+};
+
 export const SidebarNav = ({ user }: SidebarNavProps) => {
-	const [expanded, setExpanded] = useState(false);
+	const [expanded, setExpanded] = useState(readSidebarPref);
 	const { pathname } = useLocation();
+
+	const handleToggle = useCallback(() => {
+		setExpanded((prev) => {
+			const next = !prev;
+			localStorage.setItem(SIDEBAR_KEY, next ? "1" : "0");
+			return next;
+		});
+	}, []);
+
+	useEffect(() => {
+		localStorage.setItem(SIDEBAR_KEY, expanded ? "1" : "0");
+	}, [expanded]);
 
 	return (
 		<>
@@ -116,20 +166,7 @@ export const SidebarNav = ({ user }: SidebarNavProps) => {
 						boxShadow: "var(--shadow-lg)",
 					}}
 				>
-					<NavContent expanded={expanded} user={user} pathname={pathname} />
-					<Button
-						variant="ghost"
-						size="icon"
-						className="mt-2 h-8 w-8 self-end"
-						onClick={() => setExpanded((v) => !v)}
-						aria-label="Toggle menu"
-					>
-						{expanded ? (
-							<ChevronLeftIcon className="h-4 w-4" />
-						) : (
-							<ChevronRightIcon className="h-4 w-4" />
-						)}
-					</Button>
+					<NavContent expanded={expanded} onToggle={handleToggle} user={user} pathname={pathname} />
 				</div>
 			</aside>
 
@@ -137,8 +174,8 @@ export const SidebarNav = ({ user }: SidebarNavProps) => {
 			<div className="fixed top-0 left-0 z-50 p-3 md:hidden">
 				<Sheet>
 					<SheetTrigger asChild>
-					<Button variant="outline" size="icon" className="h-10 w-10" aria-label="Open menu">
-						<MenuIcon className="h-5 w-5" />
+						<Button variant="outline" size="icon" className="h-10 w-10" aria-label="Open menu">
+							<MenuIcon className="h-5 w-5" />
 						</Button>
 					</SheetTrigger>
 					<SheetContent side="left" className="w-64 p-4">
