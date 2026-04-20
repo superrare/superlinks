@@ -135,11 +135,25 @@ export async function handleStore(ctx: GetHandlerCtx): Promise<Response> {
 }
 
 // POST create-storefront
+//
+// Idempotent: a profile owns at most one storefront. If one already exists for
+// this user, return it instead of inserting. The DB also has a unique index on
+// storefronts.owner_id, so duplicate inserts would fail with code 23505 even
+// without this check — but catching it at the app layer lets us return a
+// helpful 200 with the existing row rather than a surprising 409.
 export async function createStorefront(ctx: PostHandlerCtx): Promise<Response> {
   const { user, supabase, body } = ctx;
   const name = body.name as string;
   const description = (body.description as string) ?? null;
   if (!name) return json({ error: "Missing 'name'" }, 400);
+
+  // Return the existing storefront if one already exists for this owner.
+  const { data: existing } = await supabase
+    .from("storefronts")
+    .select("*")
+    .eq("owner_id", user.id)
+    .maybeSingle();
+  if (existing) return json(existing);
 
   const slug = slugify(name);
   const { data: storefront, error } = await supabase
@@ -149,7 +163,17 @@ export async function createStorefront(ctx: PostHandlerCtx): Promise<Response> {
     .single();
 
   if (error) {
-    if (error.code === "23505") return json({ error: "Storefront slug already taken" }, 409);
+    // 23505 = unique_violation. With the new unique(owner_id) index this
+    // typically means a concurrent request won the race — look up and return.
+    if (error.code === "23505") {
+      const { data: raced } = await supabase
+        .from("storefronts")
+        .select("*")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+      if (raced) return json(raced);
+      return json({ error: "Storefront slug already taken" }, 409);
+    }
     return json({ error: error.message }, 500);
   }
   return json(storefront);
