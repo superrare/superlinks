@@ -6,6 +6,7 @@ export async function commerceFetch<T = Record<string, unknown>>(
 	env: { SUPABASE_URL: string; SUPABASE_ANON_KEY: string },
 	token: string,
 	action: string,
+	body: Record<string, unknown> = {},
 ): Promise<T> {
 	const res = await fetch(`${env.SUPABASE_URL}/functions/v1/commerce`, {
 		method: "POST",
@@ -14,7 +15,7 @@ export async function commerceFetch<T = Record<string, unknown>>(
 			Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
 			"x-user-token": token,
 		},
-		body: JSON.stringify({ action }),
+		body: JSON.stringify({ action, ...body }),
 	});
 	if (!res.ok) throw new Error(`Commerce API error: ${res.status}`);
 	return res.json();
