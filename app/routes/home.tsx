@@ -28,7 +28,7 @@ export default function HomePage({ loaderData }: Route.ComponentProps) {
 	return (
 		<div style={{ background: "var(--bg)" }}>
 			{/* Nav */}
-			<div className="sticky top-0 z-50 border-b backdrop-blur-xl" style={{ background: "oklch(0.985 0.002 250 / 0.85)", borderColor: "var(--border-subtle)" }}>
+			<div className="sticky top-0 z-50 border-b backdrop-blur-xl" style={{ background: "color-mix(in srgb, var(--bg) 85%, transparent)", borderColor: "var(--border-subtle)" }}>
 				<nav className="container-max flex items-center justify-between py-5">
 					<a href="/" className="flex items-center gap-2 text-xl font-extrabold tracking-tight">
 						<span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[var(--accent)] text-sm font-black text-[var(--accent-text)]">S</span>
@@ -185,7 +185,7 @@ const ClaimInput = ({ className = "", buttonLabel = "Claim for free" }: { classN
 			/>
 			<button
 				type="button"
-				className="shrink-0 whitespace-nowrap px-4 py-3 text-sm font-semibold transition-colors hover:text-[var(--accent-hover)]"
+				className="mr-1.5 shrink-0 whitespace-nowrap rounded-full bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-[var(--accent-text)] transition-colors hover:bg-[var(--accent-hover)]"
 				onClick={handleClaim}
 			>
 				{buttonLabel}

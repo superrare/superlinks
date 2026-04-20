@@ -99,7 +99,7 @@ const NavContent = ({
 };
 
 export const SidebarNav = ({ user }: SidebarNavProps) => {
-	const [expanded, setExpanded] = useState(true);
+	const [expanded, setExpanded] = useState(false);
 	const { pathname } = useLocation();
 
 	return (
@@ -109,10 +109,11 @@ export const SidebarNav = ({ user }: SidebarNavProps) => {
 				className={`app-nav hidden md:block ${expanded ? "expanded" : ""}`}
 			>
 				<div
-					className="flex h-full flex-col rounded-2xl border p-3"
+					className="flex h-full flex-col rounded-3xl border p-3"
 					style={{
 						background: "var(--bg-elevated)",
-						borderColor: "var(--border-subtle)",
+						borderColor: "var(--border)",
+						boxShadow: "var(--shadow-lg)",
 					}}
 				>
 					<NavContent expanded={expanded} user={user} pathname={pathname} />
