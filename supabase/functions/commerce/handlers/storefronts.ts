@@ -15,7 +15,7 @@ export async function handleStore(ctx: GetHandlerCtx): Promise<Response> {
       "id, username, display_name, bio, avatar_path, banner_path, website, twitter, telegram, farcaster, theme, slug, follower_count, following_count",
     )
     .eq("slug", slug)
-    .single();
+    .maybeSingle();
   if (bySlug) {
     profile = bySlug;
   } else {
@@ -25,17 +25,17 @@ export async function handleStore(ctx: GetHandlerCtx): Promise<Response> {
         "id, username, display_name, bio, avatar_path, banner_path, website, twitter, telegram, farcaster, theme, slug, follower_count, following_count",
       )
       .eq("username", slug)
-      .single();
+      .maybeSingle();
     profile = byUsername;
   }
 
   if (!profile) return json({ error: "Profile not found" }, 404);
 
   if (profile.avatar_path) {
-    profile.avatar_url = publicUrl(supabase, "storefront-assets", profile.avatar_path as string);
+    profile.avatar_url = publicUrl("storefront-assets", profile.avatar_path as string);
   }
   if (profile.banner_path) {
-    profile.banner_url = publicUrl(supabase, "storefront-assets", profile.banner_path as string);
+    profile.banner_url = publicUrl("storefront-assets", profile.banner_path as string);
   }
 
   // Use order+limit+maybeSingle instead of .single() to handle users with multiple storefronts
@@ -81,7 +81,7 @@ export async function handleStore(ctx: GetHandlerCtx): Promise<Response> {
   const productsWithPreviews = (products ?? []).map((p: Record<string, unknown>) => ({
     ...p,
     preview_url: p.preview_path
-      ? publicUrl(supabase, "commerce-previews", p.preview_path as string)
+      ? publicUrl("commerce-previews", p.preview_path as string)
       : null,
   }));
 
@@ -169,10 +169,10 @@ export async function myStorefronts(ctx: PostHandlerCtx): Promise<Response> {
   const withUrls = (data ?? []).map((s: Record<string, unknown>) => ({
     ...s,
     avatar_url: s.avatar_path
-      ? publicUrl(supabase, "storefront-assets", s.avatar_path as string)
+      ? publicUrl("storefront-assets", s.avatar_path as string)
       : null,
     banner_url: s.banner_path
-      ? publicUrl(supabase, "storefront-assets", s.banner_path as string)
+      ? publicUrl("storefront-assets", s.banner_path as string)
       : null,
   }));
 
@@ -190,7 +190,7 @@ export async function updateStorefront(ctx: PostHandlerCtx): Promise<Response> {
     .select("id")
     .eq("id", storefrontId)
     .eq("owner_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!owned) return json({ error: "Storefront not found or not yours" }, 404);
 
@@ -251,10 +251,10 @@ export async function updateStorefront(ctx: PostHandlerCtx): Promise<Response> {
   if (updateErr) return json({ error: updateErr.message }, 500);
 
   updated.avatar_url = updated.avatar_path
-    ? publicUrl(supabase, "storefront-assets", updated.avatar_path)
+    ? publicUrl("storefront-assets", updated.avatar_path)
     : null;
   updated.banner_url = updated.banner_path
-    ? publicUrl(supabase, "storefront-assets", updated.banner_path)
+    ? publicUrl("storefront-assets", updated.banner_path)
     : null;
 
   return json(updated);
@@ -273,14 +273,14 @@ export async function getStorefront(ctx: PostHandlerCtx): Promise<Response> {
   else if (storefrontId) query = query.eq("id", storefrontId);
   else return json({ error: "Missing 'slug' or 'storefrontId'" }, 400);
 
-  const { data: storefront, error } = await query.single();
+  const { data: storefront, error } = await query.maybeSingle();
   if (error || !storefront) return json({ error: "Storefront not found" }, 404);
 
   storefront.avatar_url = storefront.avatar_path
-    ? publicUrl(supabase, "storefront-assets", storefront.avatar_path)
+    ? publicUrl("storefront-assets", storefront.avatar_path)
     : null;
   storefront.banner_url = storefront.banner_path
-    ? publicUrl(supabase, "storefront-assets", storefront.banner_path)
+    ? publicUrl("storefront-assets", storefront.banner_path)
     : null;
 
   const [{ data: products }, storefrontPosts] = await Promise.all([
@@ -300,7 +300,7 @@ export async function getStorefront(ctx: PostHandlerCtx): Promise<Response> {
         (r.data ?? []).map((p: Record<string, unknown>) => ({
           ...p,
           media_url: p.media_path
-            ? publicUrl(supabase, "commerce-previews", p.media_path as string)
+            ? publicUrl("commerce-previews", p.media_path as string)
             : null,
         })),
       )
@@ -310,7 +310,7 @@ export async function getStorefront(ctx: PostHandlerCtx): Promise<Response> {
   const productsWithPreviews = (products ?? []).map((p: Record<string, unknown>) => ({
     ...p,
     preview_url: p.preview_path
-      ? publicUrl(supabase, "commerce-previews", p.preview_path as string)
+      ? publicUrl("commerce-previews", p.preview_path as string)
       : null,
   }));
 
@@ -334,10 +334,10 @@ export async function listStorefronts(ctx: PostHandlerCtx): Promise<Response> {
   const profilesWithUrls = (profiles ?? []).map((p: Record<string, unknown>) => ({
     ...p,
     avatar_url: p.avatar_path
-      ? publicUrl(supabase, "storefront-assets", p.avatar_path as string)
+      ? publicUrl("storefront-assets", p.avatar_path as string)
       : null,
     banner_url: p.banner_path
-      ? publicUrl(supabase, "storefront-assets", p.banner_path as string)
+      ? publicUrl("storefront-assets", p.banner_path as string)
       : null,
   }));
 

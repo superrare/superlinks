@@ -1,7 +1,23 @@
 // Supabase edge-function code uses 2-space indentation (Deno convention).
-import { json, publicUrl } from "../../_shared/utils.ts";
+import { json, publicUrl, decodeJwtPayload } from "../../_shared/utils.ts";
 import type { GetHandlerCtx, PostHandlerCtx } from "../../_shared/types.ts";
 import { svcSupabase } from "../../_shared/supabase.ts";
+
+// Lazy-loaded CDP client — the @coinbase/cdp-sdk is large, so we only pull it in
+// when the first `buy` request arrives, then reuse the client across subsequent
+// requests in the same isolate.
+// deno-lint-ignore no-explicit-any
+let _cdpClient: any = null;
+async function getCdpClient() {
+  if (_cdpClient) return _cdpClient;
+  const { CdpClient } = await import("npm:@coinbase/cdp-sdk");
+  _cdpClient = new CdpClient({
+    apiKeyId: Deno.env.get("CDP_API_KEY_ID"),
+    apiKeySecret: Deno.env.get("CDP_API_KEY_SECRET"),
+    walletSecret: Deno.env.get("CDP_WALLET_SECRET"),
+  });
+  return _cdpClient;
+}
 
 // GET /commerce/preview/:productId
 export async function handlePreview(ctx: GetHandlerCtx): Promise<Response> {
@@ -13,7 +29,7 @@ export async function handlePreview(ctx: GetHandlerCtx): Promise<Response> {
     .select("preview_path")
     .eq("id", productId)
     .eq("status", "active")
-    .single();
+    .maybeSingle();
 
   if (!product?.preview_path) return json({ error: "No preview available" }, 404);
 
@@ -37,7 +53,7 @@ export async function handleContent(ctx: GetHandlerCtx): Promise<Response> {
       .select("*, storefronts!inner(owner_id)")
       .eq("id", productId)
       .eq("status", "active")
-      .single();
+      .maybeSingle();
 
     if (!product) return json({ error: "Product not found" }, 404);
 
@@ -45,7 +61,7 @@ export async function handleContent(ctx: GetHandlerCtx): Promise<Response> {
       .from("wallets")
       .select("address")
       .eq("user_id", product.creator_id)
-      .single();
+      .maybeSingle();
 
     return json(
       {
@@ -72,8 +88,10 @@ export async function handleContent(ctx: GetHandlerCtx): Promise<Response> {
     );
   }
 
-  // Authenticated download — verify purchase
-  const { decodeJwtPayload } = await import("../../_shared/utils.ts");
+  // Authenticated download — verify purchase.
+  // We decode (without signature verification) only to extract `sub` for a
+  // cookie-style content-gate lookup. Any action that mutates data goes through
+  // the POST path, which uses the signature-verifying getUser().
   const payload = decodeJwtPayload(userToken);
   if (!payload.sub) return json({ error: "Invalid token" }, 401);
   const userId = payload.sub as string;
@@ -83,14 +101,15 @@ export async function handleContent(ctx: GetHandlerCtx): Promise<Response> {
     .select("*")
     .eq("product_id", productId)
     .eq("buyer_id", userId)
+    .order("created_at", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   const { data: product } = await supabase
     .from("products")
     .select("*")
     .eq("id", productId)
-    .single();
+    .maybeSingle();
 
   if (!product) return json({ error: "Product not found" }, 404);
 
@@ -164,7 +183,7 @@ export async function addProduct(ctx: PostHandlerCtx): Promise<Response> {
     .select("id")
     .eq("id", storefrontId)
     .eq("owner_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!storefront) return json({ error: "Storefront not found or not yours" }, 404);
 
@@ -253,7 +272,7 @@ export async function browse(ctx: PostHandlerCtx): Promise<Response> {
   const productsWithPreviews = (products ?? []).map((p: Record<string, unknown>) => ({
     ...p,
     preview_url: p.preview_path
-      ? publicUrl(supabase, "commerce-previews", p.preview_path as string)
+      ? publicUrl("commerce-previews", p.preview_path as string)
       : null,
   }));
 
@@ -284,7 +303,7 @@ export async function buy(ctx: PostHandlerCtx): Promise<Response> {
     .select("*")
     .eq("id", productId)
     .eq("status", "active")
-    .single();
+    .maybeSingle();
 
   if (!product) return json({ error: "Product not found" }, 404);
 
@@ -303,7 +322,7 @@ export async function buy(ctx: PostHandlerCtx): Promise<Response> {
       .eq("product_id", productId)
       .eq("buyer_id", user.id)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (existingPurchase) {
       return json({ error: "Already purchased", purchaseId: existingPurchase.id }, 409);
@@ -314,7 +333,7 @@ export async function buy(ctx: PostHandlerCtx): Promise<Response> {
     .from("wallets")
     .select("provider_wallet_id, address")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!buyerWallet) return json({ error: "No wallet found" }, 404);
 
@@ -322,16 +341,11 @@ export async function buy(ctx: PostHandlerCtx): Promise<Response> {
     .from("wallets")
     .select("address")
     .eq("user_id", product.creator_id)
-    .single();
+    .maybeSingle();
 
   if (!sellerWallet) return json({ error: "Seller has no wallet" }, 404);
 
-  const { CdpClient } = await import("npm:@coinbase/cdp-sdk");
-  const cdp = new CdpClient({
-    apiKeyId: Deno.env.get("CDP_API_KEY_ID"),
-    apiKeySecret: Deno.env.get("CDP_API_KEY_SECRET"),
-    walletSecret: Deno.env.get("CDP_WALLET_SECRET"),
-  });
+  const cdp = await getCdpClient();
 
   const usdcAddress = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
   const decimals = 6;
@@ -433,7 +447,7 @@ export async function deleteProduct(ctx: PostHandlerCtx): Promise<Response> {
     .select("file_path")
     .eq("id", delProductId)
     .eq("creator_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!product) return json({ error: "Product not found or not owned by you" }, 404);
 

@@ -1,5 +1,5 @@
 // Supabase edge-function code uses 2-space indentation (Deno convention).
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.0";
+import { svcSupabase } from "./supabase.ts";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,19 +21,25 @@ export function decodeJwtPayload(token: string): Record<string, unknown> {
   return JSON.parse(decoded);
 }
 
+/**
+ * Verify a user JWT and return the authenticated user plus the shared service-role client.
+ *
+ * Verification is performed by Supabase Auth (`auth.getUser`), which validates the
+ * token signature and expiry. We intentionally do NOT trust the raw payload.
+ *
+ * Service-role client is safe to reuse across requests since every handler
+ * enforces `user.id` checks explicitly — we are not relying on RLS.
+ */
 export async function getUser(token: string) {
-  const payload = decodeJwtPayload(token);
-  if (!payload.sub) throw new Error("Unauthorized: no subject in token");
+  const { data, error } = await svcSupabase.auth.getUser(token);
+  if (error || !data?.user) {
+    throw new Error("Unauthorized: invalid or expired token");
+  }
   const user = {
-    id: payload.sub as string,
-    email: payload.email as string | undefined,
+    id: data.user.id,
+    email: data.user.email ?? undefined,
   };
-  // Service-role client is safe to reuse since we enforce user.id checks in handlers.
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
-  return { user, supabase };
+  return { user, supabase: svcSupabase };
 }
 
 export function slugify(text: string): string {
@@ -45,24 +51,20 @@ export function slugify(text: string): string {
 }
 
 /** Get a public URL for a file in a public storage bucket. */
-export function publicUrl(
-  _supabase: ReturnType<typeof createClient>,
-  bucket: string,
-  path: string,
-): string {
+export function publicUrl(bucket: string, path: string): string {
   const base = Deno.env.get("SUPABASE_URL")!;
   const encodedPath = path.split("/").map(encodeURIComponent).join("/");
   return `${base}/storage/v1/object/public/${bucket}/${encodedPath}`;
 }
 
-/** Generate a signed URL for a file in a private storage bucket (1 hour expiry). */
-export async function signedUrl(
-  supabase: ReturnType<typeof createClient>,
-  bucket: string,
-  path: string,
-): Promise<string | null> {
-  const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
-  return data?.signedUrl ?? null;
+/** Minimal HTML-attribute/text escaper to prevent XSS when interpolating into HTML. */
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 export async function hmacSign(data: string, secret: string): Promise<string> {

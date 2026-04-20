@@ -15,7 +15,7 @@ export async function sendMessage(ctx: PostHandlerCtx): Promise<Response> {
     .from("profiles")
     .select("id, username")
     .eq("username", recipientUsername)
-    .single();
+    .maybeSingle();
 
   if (!recipient) return json({ error: `User @${recipientUsername} not found` }, 404);
   if (recipient.id === user.id) return json({ error: "Cannot message yourself" }, 400);
@@ -94,7 +94,7 @@ export async function getConversation(ctx: PostHandlerCtx): Promise<Response> {
     .from("profiles")
     .select("id, username, display_name")
     .eq("id", partnerId)
-    .single();
+    .maybeSingle();
 
   return json({ messages: messages ?? [], partner });
 }

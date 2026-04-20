@@ -1,6 +1,6 @@
 import type { Route } from "./+types/creator-page";
 import { getEnv } from "~/lib/env.server";
-import { fetchStore } from "~/lib/commerce.server";
+import { fetchStore, fetchProductsFallback } from "~/lib/commerce.server";
 import { resolveThemeVars, getFontStylesheetUrl } from "~/features/creator-page/lib/theming";
 import { generateWallpaperSvg } from "~/features/creator-page/lib/wallpaper";
 import { timeAgo } from "~/lib/utils";
@@ -52,7 +52,19 @@ export const loader = async ({ params, request, context }: Route.LoaderArgs) => 
 	try {
 		const data = await fetchStore(SUPABASE_URL, SUPABASE_ANON_KEY, params.handle);
 		const storefront = (data as Record<string, any>).storefront;
-		const products = ((data as Record<string, any>).products ?? []) as any[];
+		let products = ((data as Record<string, any>).products ?? []) as any[];
+
+		// Safety-net: if the edge function returned no products but we have a
+		// storefront, re-query products directly from the REST API. This covers
+		// us against a regression in the edge function. Remove after one release.
+		if (products.length === 0 && storefront?.id) {
+			const fallback = await fetchProductsFallback(
+				SUPABASE_URL,
+				SUPABASE_ANON_KEY,
+				storefront.id,
+			);
+			if (fallback.length > 0) products = fallback;
+		}
 
 		return {
 			storefront: storefront ?? {},

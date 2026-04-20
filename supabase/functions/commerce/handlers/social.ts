@@ -1,5 +1,5 @@
 // Supabase edge-function code uses 2-space indentation (Deno convention).
-import { json } from "../../_shared/utils.ts";
+import { json, publicUrl } from "../../_shared/utils.ts";
 import type { PostHandlerCtx } from "../../_shared/types.ts";
 
 // POST feed
@@ -27,11 +27,10 @@ export async function feed(ctx: PostHandlerCtx): Promise<Response> {
 
   if (feedErr) return json({ error: feedErr.message }, 500);
 
-  const { publicUrl } = await import("../../_shared/utils.ts");
   const feedWithMedia = (feedPosts ?? []).map((p: Record<string, unknown>) => ({
     ...p,
     media_url: p.media_path
-      ? publicUrl(supabase, "commerce-previews", p.media_path as string)
+      ? publicUrl("commerce-previews", p.media_path as string)
       : null,
   }));
 
@@ -49,7 +48,7 @@ export async function follow(ctx: PostHandlerCtx): Promise<Response> {
     .from("profiles")
     .select("id, username")
     .eq("id", targetId)
-    .single();
+    .maybeSingle();
   if (!targetProfile) return json({ error: "User not found" }, 404);
 
   const { error: followErr } = await supabase
@@ -129,7 +128,7 @@ export async function isFollowing(ctx: PostHandlerCtx): Promise<Response> {
     .eq("follower_id", user.id)
     .eq("following_id", checkTargetId)
     .limit(1)
-    .single();
+    .maybeSingle();
 
   return json({ isFollowing: !!exists });
 }

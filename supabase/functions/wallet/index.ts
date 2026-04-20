@@ -10,12 +10,18 @@ function getAlchemyUrl() {
   return "https://sepolia.base.org"; // fallback to public RPC
 }
 
-function getCdp() {
-  return new CdpClient({
-    apiKeyId: Deno.env.get("CDP_API_KEY_ID"),
-    apiKeySecret: Deno.env.get("CDP_API_KEY_SECRET"),
-    walletSecret: Deno.env.get("CDP_WALLET_SECRET"),
-  });
+// Module-scoped singleton — re-using the CDP client across requests avoids
+// the cost of re-instantiating TLS/auth state on every invocation.
+let _cdp: CdpClient | null = null;
+function getCdp(): CdpClient {
+  if (!_cdp) {
+    _cdp = new CdpClient({
+      apiKeyId: Deno.env.get("CDP_API_KEY_ID"),
+      apiKeySecret: Deno.env.get("CDP_API_KEY_SECRET"),
+      walletSecret: Deno.env.get("CDP_WALLET_SECRET"),
+    });
+  }
+  return _cdp;
 }
 
 // Call Base Sepolia JSON-RPC
@@ -134,7 +140,7 @@ Deno.serve(async (req) => {
           .from("wallets")
           .select("id, address")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
         if (existing) {
           return json({ address: existing.address, existing: true });
@@ -159,7 +165,7 @@ Deno.serve(async (req) => {
           .from("wallets")
           .select("provider_wallet_id")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
         if (!wallet) return json({ error: "No wallet found" }, 404);
 
@@ -177,7 +183,7 @@ Deno.serve(async (req) => {
           .from("wallets")
           .select("provider_wallet_id, address")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
         if (!wallet) return json({ error: "No wallet found" }, 404);
 
@@ -253,7 +259,7 @@ Deno.serve(async (req) => {
           .from("wallets")
           .select("provider_wallet_id")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
         if (!wallet) return json({ error: "No wallet found" }, 404);
 
@@ -263,7 +269,7 @@ Deno.serve(async (req) => {
             .from("profiles")
             .select("id")
             .eq("username", to)
-            .single();
+            .maybeSingle();
 
           if (!profile) return json({ error: `User '${to}' not found` }, 404);
 
@@ -271,7 +277,7 @@ Deno.serve(async (req) => {
             .from("wallets")
             .select("address")
             .eq("user_id", profile.id)
-            .single();
+            .maybeSingle();
 
           if (!recipientWallet) return json({ error: `User '${to}' has no wallet` }, 404);
           toAddress = recipientWallet.address;
@@ -319,7 +325,7 @@ Deno.serve(async (req) => {
           .from("wallets")
           .select("provider_wallet_id")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
         if (!wallet) return json({ error: "No wallet found" }, 404);
 

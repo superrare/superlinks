@@ -61,7 +61,7 @@ export async function createPost(ctx: PostHandlerCtx): Promise<Response> {
   if (postErr) return json({ error: postErr.message }, 500);
 
   const mediaUrl = post.media_path
-    ? publicUrl(supabase, "commerce-previews", post.media_path)
+    ? publicUrl("commerce-previews", post.media_path)
     : null;
 
   const { data: postFollowers } = await supabase
@@ -127,7 +127,7 @@ export async function getPosts(ctx: PostHandlerCtx): Promise<Response> {
   const postsWithMedia = (posts ?? []).map((p: Record<string, unknown>) => ({
     ...p,
     media_url: p.media_path
-      ? publicUrl(supabase, "commerce-previews", p.media_path as string)
+      ? publicUrl("commerce-previews", p.media_path as string)
       : null,
   }));
 

@@ -9,7 +9,7 @@ export async function adminCheck(ctx: PostHandlerCtx): Promise<Response> {
     .from("admin_emails")
     .select("email")
     .eq("email", user.email ?? "")
-    .single();
+    .maybeSingle();
   return json({ isAdmin: !!adm });
 }
 
@@ -21,7 +21,7 @@ export async function adminUsers(ctx: PostHandlerCtx): Promise<Response> {
     .from("admin_emails")
     .select("email")
     .eq("email", user.email ?? "")
-    .single();
+    .maybeSingle();
   if (!adm) return json({ error: "Forbidden" }, 403);
 
   const { data: profiles } = await supabase

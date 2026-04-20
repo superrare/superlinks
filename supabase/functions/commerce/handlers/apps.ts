@@ -1,6 +1,14 @@
 // Supabase edge-function code uses 2-space indentation (Deno convention).
 import { unzipSync } from "https://esm.sh/fflate@0.8.2";
-import { json, hmacSign, hmacVerify, slugify } from "../../_shared/utils.ts";
+import {
+  json,
+  hmacSign,
+  hmacVerify,
+  slugify,
+  decodeJwtPayload,
+  escapeHtml,
+  corsHeaders,
+} from "../../_shared/utils.ts";
 import type { GetHandlerCtx, PostHandlerCtx } from "../../_shared/types.ts";
 import { svcSupabase } from "../../_shared/supabase.ts";
 
@@ -51,7 +59,7 @@ export async function handleAppServing(ctx: GetHandlerCtx): Promise<Response> {
     .eq("id", productId)
     .eq("content_type", "app")
     .eq("status", "active")
-    .single();
+    .maybeSingle();
 
   if (!product) return json({ error: "App not found" }, 404);
 
@@ -68,17 +76,28 @@ export async function handleAppServing(ctx: GetHandlerCtx): Promise<Response> {
   let hasAccess = false;
 
   if (tokenCookie) {
-    const parts = tokenCookie.split(".");
-    if (parts.length === 3) {
-      const [hmac, buyerId, expiryStr] = parts;
-      const expiry = parseInt(expiryStr, 10);
-      if (expiry > Date.now() / 1000) {
-        const valid = await hmacVerify(
-          `${productId}${buyerId}${expiryStr}`,
-          hmac,
-          serverSecret,
-        );
-        if (valid) hasAccess = true;
+    // Token format (emitted by grantAppToken): `<base64(payload)>.<hmac>`
+    // where payload is JSON `{ pid, uid, exp }`.
+    const [payloadB64, hmac] = tokenCookie.split(".");
+    if (payloadB64 && hmac) {
+      try {
+        const valid = await hmacVerify(payloadB64, hmac, serverSecret);
+        if (valid) {
+          const payload = JSON.parse(atob(payloadB64)) as {
+            pid?: string;
+            uid?: string;
+            exp?: number;
+          };
+          if (
+            payload.pid === productId &&
+            typeof payload.exp === "number" &&
+            payload.exp > Date.now() / 1000
+          ) {
+            hasAccess = true;
+          }
+        }
+      } catch {
+        /* malformed token, fall through to paywall */
       }
     }
   }
@@ -87,7 +106,6 @@ export async function handleAppServing(ctx: GetHandlerCtx): Promise<Response> {
     const userToken = ctx.req.headers.get("x-user-token");
     if (userToken) {
       try {
-        const { decodeJwtPayload } = await import("../../_shared/utils.ts");
         const payload = decodeJwtPayload(userToken);
         const userId = payload.sub as string;
         const { data: purchase } = await supabase
@@ -95,8 +113,9 @@ export async function handleAppServing(ctx: GetHandlerCtx): Promise<Response> {
           .select("id")
           .eq("product_id", productId)
           .eq("buyer_id", userId)
+          .order("created_at", { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (purchase || product.creator_id === userId) {
           hasAccess = true;
@@ -117,12 +136,20 @@ export async function handleAppServing(ctx: GetHandlerCtx): Promise<Response> {
       .from("wallets")
       .select("address")
       .eq("user_id", product.creator_id)
-      .single();
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    const safeTitle = escapeHtml(String(product.title ?? ""));
+    const safeCreator = escapeHtml(String(displayName));
+    const safeDesc = product.description ? escapeHtml(String(product.description)) : "";
+    const safePrice = escapeHtml(String(product.price ?? "0"));
+    const safeProductId = escapeHtml(String(productId));
 
     const paywallHtml = `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${product.title} — Pay to Access</title>
+<title>${safeTitle} — Pay to Access</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;color:#e5e5e5;min-height:100vh;display:flex;align-items:center;justify-content:center}
@@ -137,19 +164,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .paywall .footer{margin-top:32px;color:#525252;font-size:12px}
 </style></head><body>
 <div class="paywall">
-<h1>${product.title}</h1>
-<div class="creator">by ${displayName}</div>
-${product.description ? `<div class="desc">${product.description}</div>` : ""}
-<div class="price">${product.price} USDC</div>
+<h1>${safeTitle}</h1>
+<div class="creator">by ${safeCreator}</div>
+${safeDesc ? `<div class="desc">${safeDesc}</div>` : ""}
+<div class="price">${safePrice} USDC</div>
 <div class="currency">on Base</div>
-<p class="footer">Purchase via CLI: juice store buy ${productId}</p>
+<p class="footer">Purchase via CLI: juice store buy ${safeProductId}</p>
 </div>
 </body></html>`;
 
     return new Response(paywallHtml, {
       status: 402,
       headers: {
-        "Access-Control-Allow-Origin": "*",
+        ...corsHeaders,
         "Content-Type": "text/html; charset=utf-8",
         "X-X402-Version": "1",
         "X-X402-PayTo": sellerWallet?.address ?? "",
@@ -241,7 +268,7 @@ export async function addApp(ctx: PostHandlerCtx): Promise<Response> {
     .select("id")
     .eq("id", storefrontId)
     .eq("owner_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!appStorefront) return json({ error: "Storefront not found or not yours" }, 404);
 
@@ -403,7 +430,7 @@ export async function updateApp(ctx: PostHandlerCtx): Promise<Response> {
     .eq("id", updateProductId)
     .eq("creator_id", user.id)
     .eq("content_type", "app")
-    .single();
+    .maybeSingle();
 
   if (!existingProduct) return json({ error: "App product not found or not yours" }, 404);
 
@@ -427,7 +454,7 @@ export async function updateApp(ctx: PostHandlerCtx): Promise<Response> {
       .from("app_deployments")
       .select("version")
       .eq("id", existingProduct.current_deployment_id)
-      .single();
+      .maybeSingle();
     if (currentDeploy) nextVersion = currentDeploy.version + 1;
   }
 
@@ -546,7 +573,7 @@ export async function grantAppToken(ctx: PostHandlerCtx): Promise<Response> {
     .select("id, slug, creator_id, price")
     .eq("id", grantProductId)
     .eq("content_type", "app")
-    .single();
+    .maybeSingle();
 
   if (!grantProduct) return json({ error: "App product not found" }, 404);
 

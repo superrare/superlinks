@@ -1,18 +1,19 @@
 // Supabase edge-function code uses 2-space indentation (Deno convention).
-import { json, publicUrl } from "../../_shared/utils.ts";
+import { json, publicUrl, escapeHtml, corsHeaders } from "../../_shared/utils.ts";
 import type { GetHandlerCtx, PostHandlerCtx } from "../../_shared/types.ts";
 import { svcSupabase } from "../../_shared/supabase.ts";
 
 // GET /commerce/og/:slug
 export async function handleOg(ctx: GetHandlerCtx): Promise<Response> {
   const slug = ctx.resourceId;
+  if (!slug) return json({ error: "Missing slug" }, 400);
   const supabase = svcSupabase;
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("username, display_name, bio, avatar_path")
     .eq("slug", slug)
-    .single();
+    .maybeSingle();
   const sf =
     profile ??
     (
@@ -20,17 +21,20 @@ export async function handleOg(ctx: GetHandlerCtx): Promise<Response> {
         .from("profiles")
         .select("username, display_name, bio, avatar_path")
         .eq("username", slug)
-        .single()
+        .maybeSingle()
     ).data;
 
   if (!sf) return json({ error: "Profile not found" }, 404);
 
-  const displayName = sf.display_name ?? sf.username ?? slug;
-  const description = sf.bio ?? `Check out ${displayName} on Rare Protocol`;
-  const imageUrl = sf.avatar_path
-    ? publicUrl(supabase, "storefront-assets", sf.avatar_path)
-    : "";
-  const pageUrl = `${Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", "")}/link.html?s=${slug}`;
+  const rawDisplayName = sf.display_name ?? sf.username ?? slug;
+  const rawDescription = sf.bio ?? `Check out ${rawDisplayName} on Rare Protocol`;
+  const imageUrl = sf.avatar_path ? publicUrl("storefront-assets", sf.avatar_path) : "";
+  const rawPageUrl = `${Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", "")}/link.html?s=${slug}`;
+
+  const displayName = escapeHtml(rawDisplayName);
+  const description = escapeHtml(rawDescription);
+  const pageUrl = escapeHtml(rawPageUrl);
+  const safeImageUrl = imageUrl ? escapeHtml(imageUrl) : "";
 
   const html = `<!DOCTYPE html>
 <html><head>
@@ -40,18 +44,18 @@ export async function handleOg(ctx: GetHandlerCtx): Promise<Response> {
 <meta property="og:description" content="${description}" />
 <meta property="og:type" content="profile" />
 <meta property="og:url" content="${pageUrl}" />
-${imageUrl ? `<meta property="og:image" content="${imageUrl}" />` : ""}
+${safeImageUrl ? `<meta property="og:image" content="${safeImageUrl}" />` : ""}
 <meta name="twitter:card" content="summary" />
 <meta name="twitter:title" content="${displayName} — Rare Protocol" />
 <meta name="twitter:description" content="${description}" />
-${imageUrl ? `<meta name="twitter:image" content="${imageUrl}" />` : ""}
+${safeImageUrl ? `<meta name="twitter:image" content="${safeImageUrl}" />` : ""}
 <meta http-equiv="refresh" content="0;url=${pageUrl}" />
 </head><body><p>Redirecting to <a href="${pageUrl}">${displayName}</a>...</p></body></html>`;
 
   return new Response(html, {
     status: 200,
     headers: {
-      "Access-Control-Allow-Origin": "*",
+      ...corsHeaders,
       "Content-Type": "text/html; charset=utf-8",
     },
   });
@@ -66,11 +70,13 @@ export async function handleCheckUsername(ctx: GetHandlerCtx): Promise<Response>
       reason: "Must be 3-30 characters (letters, numbers, hyphens, underscores)",
     });
   }
+  // username has a unique constraint in the DB; maybeSingle avoids a 500 on
+  // accidental duplicates and treats "no row" as available.
   const { data } = await svcSupabase
     .from("profiles")
     .select("id")
     .eq("username", username)
-    .single();
+    .maybeSingle();
   return json({ available: !data, username });
 }
 
@@ -94,7 +100,7 @@ export async function updateUsername(ctx: PostHandlerCtx): Promise<Response> {
     .select("id")
     .eq("username", newUsername)
     .neq("id", user.id)
-    .single();
+    .maybeSingle();
   if (existing) return json({ error: "That handle is already taken" }, 409);
 
   const { data: existingSlug } = await supabase
@@ -102,7 +108,7 @@ export async function updateUsername(ctx: PostHandlerCtx): Promise<Response> {
     .select("id")
     .eq("slug", newUsername)
     .neq("id", user.id)
-    .single();
+    .maybeSingle();
   if (existingSlug) return json({ error: "That handle is already taken" }, 409);
 
   const { error: updateErr } = await supabase
@@ -176,10 +182,10 @@ export async function updateProfile(ctx: PostHandlerCtx): Promise<Response> {
   if (profileUpdateErr) return json({ error: profileUpdateErr.message }, 500);
 
   updatedProfile.avatar_url = updatedProfile.avatar_path
-    ? publicUrl(supabase, "storefront-assets", updatedProfile.avatar_path)
+    ? publicUrl("storefront-assets", updatedProfile.avatar_path)
     : null;
   updatedProfile.banner_url = updatedProfile.banner_path
-    ? publicUrl(supabase, "storefront-assets", updatedProfile.banner_path)
+    ? publicUrl("storefront-assets", updatedProfile.banner_path)
     : null;
 
   return json(updatedProfile);
@@ -201,14 +207,14 @@ export async function getProfile(ctx: PostHandlerCtx): Promise<Response> {
   else if (profileId) profileQuery = profileQuery.eq("id", profileId);
   else profileQuery = profileQuery.eq("id", user.id);
 
-  const { data: fetchedProfile, error: profileFetchErr } = await profileQuery.single();
+  const { data: fetchedProfile, error: profileFetchErr } = await profileQuery.maybeSingle();
   if (profileFetchErr || !fetchedProfile) return json({ error: "Profile not found" }, 404);
 
   fetchedProfile.avatar_url = fetchedProfile.avatar_path
-    ? publicUrl(supabase, "storefront-assets", fetchedProfile.avatar_path)
+    ? publicUrl("storefront-assets", fetchedProfile.avatar_path)
     : null;
   fetchedProfile.banner_url = fetchedProfile.banner_path
-    ? publicUrl(supabase, "storefront-assets", fetchedProfile.banner_path)
+    ? publicUrl("storefront-assets", fetchedProfile.banner_path)
     : null;
 
   return json(fetchedProfile);

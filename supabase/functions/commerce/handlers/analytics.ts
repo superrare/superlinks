@@ -31,7 +31,7 @@ export async function trackClick(ctx: PublicCtx): Promise<Response> {
     .from("custom_links")
     .select("storefront_id, profile_id")
     .eq("id", linkId)
-    .single();
+    .maybeSingle();
 
   if (!link) return json({ error: "Link not found" }, 404);
 
@@ -87,7 +87,7 @@ export async function pageViewAnalytics(ctx: PostHandlerCtx): Promise<Response> 
     .from("page_view_counts")
     .select("total_views, views_24h, views_7d, last_viewed_at")
     .eq("profile_id", user.id)
-    .single();
+    .maybeSingle();
 
   return json({
     pageViews: {

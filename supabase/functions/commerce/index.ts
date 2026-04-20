@@ -97,8 +97,28 @@ const postActions: Record<string, (ctx: PostHandlerCtx) => Promise<Response>> = 
   "admin-users": admin.adminUsers,
 };
 
+// GET routes that must receive a non-empty `resourceId` (path param) to function.
+const getRequiresResourceId = new Set(["og", "check-username", "store", "preview", "content", "app"]);
+
+// Generic error payload for 5xx. Real error details stay in logs.
+const INTERNAL_ERROR = { error: "Internal server error" };
+
+function logError(event: string, ctx: Record<string, unknown>, err: unknown) {
+  // Edge-function logs are plain text; a single-line JSON blob is easy to grep/filter.
+  const payload = {
+    event,
+    ...ctx,
+    error: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined,
+  };
+  console.error(JSON.stringify(payload));
+}
+
 // ─── Main handler ─────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
+  const requestId =
+    req.headers.get("x-request-id") ?? crypto.randomUUID();
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -108,17 +128,20 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const pathParts = url.pathname.split("/").filter(Boolean);
     const actionIdx = pathParts.indexOf("commerce");
-    const subAction = pathParts[actionIdx + 1];
+    const subAction = pathParts[actionIdx + 1] ?? "";
     const resourceId = pathParts[actionIdx + 2] ?? "";
 
     const handler = getRoutes[subAction];
     if (!handler) return json({ error: "Not found" }, 404);
+    if (getRequiresResourceId.has(subAction) && !resourceId) {
+      return json({ error: `Missing resource id for /${subAction}` }, 400);
+    }
 
     try {
       return await handler({ req, segments: pathParts, resourceId });
     } catch (err) {
-      console.error(err);
-      return json({ error: (err as Error).message }, 500);
+      logError("commerce_get_error", { requestId, subAction, resourceId }, err);
+      return json(INTERNAL_ERROR, 500);
     }
   }
 
@@ -127,9 +150,10 @@ Deno.serve(async (req) => {
   }
 
   // ── POST routes ──
+  let action = "";
   try {
     const rawBody = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    const action = (rawBody.action as string) ?? "";
+    action = (rawBody.action as string) ?? "";
 
     // Public (no-auth) actions
     if (action === "track-pageview") {
@@ -143,15 +167,27 @@ Deno.serve(async (req) => {
     const userToken = req.headers.get("x-user-token");
     if (!userToken) return json({ error: "Missing x-user-token header" }, 401);
 
-    const { user, supabase } = await getUser(userToken);
-    const ctx: PostHandlerCtx = { user, supabase, body: rawBody };
+    let userCtx;
+    try {
+      userCtx = await getUser(userToken);
+    } catch (err) {
+      // getUser throws on invalid/expired tokens — surface as 401, not 500.
+      logError("commerce_auth_error", { requestId, action }, err);
+      return json({ error: "Unauthorized" }, 401);
+    }
+
+    const ctx: PostHandlerCtx = {
+      user: userCtx.user,
+      supabase: userCtx.supabase,
+      body: rawBody,
+    };
 
     const handler = postActions[action];
     if (!handler) return json({ error: `Unknown action: ${action}` }, 400);
 
     return await handler(ctx);
   } catch (err) {
-    console.error(err);
-    return json({ error: (err as Error).message }, 500);
+    logError("commerce_post_error", { requestId, action }, err);
+    return json(INTERNAL_ERROR, 500);
   }
 });

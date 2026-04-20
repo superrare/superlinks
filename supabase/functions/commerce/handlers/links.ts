@@ -27,7 +27,7 @@ export async function addLink(ctx: PostHandlerCtx): Promise<Response> {
     .eq("profile_id", user.id)
     .order("sort_order", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
   const nextOrder = (maxRow?.sort_order ?? -1) + 1;
 
   const { data: link, error: linkErr } = await supabase
@@ -57,7 +57,7 @@ export async function updateLink(ctx: PostHandlerCtx): Promise<Response> {
     .from("custom_links")
     .select("id, profile_id")
     .eq("id", updateLinkId)
-    .single();
+    .maybeSingle();
   if (!existingLink) return json({ error: "Link not found" }, 404);
   if (existingLink.profile_id !== user.id) return json({ error: "Not your link" }, 403);
 
@@ -88,7 +88,7 @@ export async function deleteLink(ctx: PostHandlerCtx): Promise<Response> {
     .from("custom_links")
     .select("profile_id")
     .eq("id", delLinkId)
-    .single();
+    .maybeSingle();
   if (!delLink) return json({ error: "Link not found" }, 404);
   if (delLink.profile_id !== user.id) return json({ error: "Not your link" }, 403);
 
