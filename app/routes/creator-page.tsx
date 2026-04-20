@@ -202,6 +202,10 @@ export default function CreatorPage({ loaderData }: Route.ComponentProps) {
 								{shopProducts.map((p: any) => (
 									<button
 										key={p.id}
+										type="button"
+										data-product-id={p.id}
+										data-product-title={p.title}
+										data-product-price={p.price}
 										className="flex items-center gap-3 px-5 py-3.5 text-left text-sm font-medium shadow-sm transition-all hover:-translate-y-0.5"
 										style={{ ...parseStyle(theme.linkStyle) }}
 									>
