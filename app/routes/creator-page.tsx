@@ -4,11 +4,17 @@ import { fetchStore } from "~/lib/commerce.server";
 import { resolveThemeVars, getFontStylesheetUrl } from "~/features/creator-page/lib/theming";
 import { generateWallpaperSvg } from "~/features/creator-page/lib/wallpaper";
 import { timeAgo } from "~/lib/utils";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState, useEffect, type ReactNode } from "react";
 
 const CheckoutModal = lazy(() => import("~/features/creator-page/components/checkout-modal.client"));
 const QRModal = lazy(() => import("~/features/creator-page/components/qr-modal.client"));
 const ShareModal = lazy(() => import("~/features/creator-page/components/share-modal.client"));
+
+const ClientOnly = ({ children }: { children: () => ReactNode }) => {
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => setMounted(true), []);
+	return mounted ? <>{children()}</> : null;
+};
 
 export const meta: Route.MetaFunction = ({ data }: { data?: Record<string, any> } = {}) => {
 	if (!data?.storefront) return [{ title: "SuperLinks.me" }];
@@ -46,10 +52,11 @@ export const loader = async ({ params, request, context }: Route.LoaderArgs) => 
 	try {
 		const data = await fetchStore(SUPABASE_URL, SUPABASE_ANON_KEY, params.handle);
 		const storefront = (data as Record<string, any>).storefront;
+		const products = ((data as Record<string, any>).products ?? []) as any[];
 
 		return {
 			storefront: storefront ?? {},
-			products: ((data as Record<string, any>).products ?? []) as any[],
+			products,
 			posts: ((data as Record<string, any>).posts ?? []) as any[],
 			links: ((data as Record<string, any>).links ?? []) as any[],
 			ENV: getEnv(context),
@@ -77,7 +84,9 @@ export default function CreatorPage({ loaderData }: Route.ComponentProps) {
 	const bgInline =
 		theme.bgStyle === "gradient"
 			? { background: `linear-gradient(135deg, ${theme.accentColor}22 0%, ${theme.bgColor || "var(--lt-bg)"} 60%)` }
-			: {};
+			: theme.bgColor
+				? { background: theme.bgColor }
+				: {};
 
 	const avatarStyle = {
 		width: theme.avatarPx,
@@ -228,15 +237,21 @@ export default function CreatorPage({ loaderData }: Route.ComponentProps) {
 			</div>
 
 			{/* Client-only interactive modals */}
-			<Suspense fallback={null}>
-				<QRModal />
-			</Suspense>
-			<Suspense fallback={null}>
-				<ShareModal displayName={displayName} username={username} avatarUrl={s.avatar_url} accentColor={theme.effectiveBtnColor} />
-			</Suspense>
-			<Suspense fallback={null}>
-				<CheckoutModal displayName={displayName} username={username} />
-			</Suspense>
+			<ClientOnly>
+				{() => (
+					<>
+						<Suspense fallback={null}>
+							<QRModal />
+						</Suspense>
+						<Suspense fallback={null}>
+							<ShareModal displayName={displayName} username={username} avatarUrl={s.avatar_url} accentColor={theme.effectiveBtnColor} />
+						</Suspense>
+						<Suspense fallback={null}>
+							<CheckoutModal displayName={displayName} username={username} />
+						</Suspense>
+					</>
+				)}
+			</ClientOnly>
 		</div>
 	);
 }
